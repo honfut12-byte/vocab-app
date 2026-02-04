@@ -1,58 +1,59 @@
-const express = require("express");
-const cors = require("cors");
-const OpenAI = require("openai");
-const { createClient } = require("@supabase/supabase-js");
+import express from "express"
+import cors from "cors"
+import OpenAI from "openai"
 
-const app = express();
-app.use(cors());
-app.use(express.json());
+const app = express()
+app.use(cors())
+app.use(express.json())
 
-// 🔐 ключи
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY
+})
 
-const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_KEY
-);
-
-app.post("/analyze-word", async (req, res) => {
-  const { word, userId } = req.body;
+app.post("/analyze", async (req, res) => {
+  const { word } = req.body
 
   try {
     const completion = await openai.chat.completions.create({
-      model: "gpt-4o-mini", // дешевый и норм для текста
+      model: "gpt-4o-mini",
       messages: [
         {
           role: "system",
-          content: `You are a dictionary assistant. Return JSON only with:
-word, translation, transcription, part_of_speech, level, examples (2 simple sentences)`
+          content: `
+You are a vocabulary teacher for kids.
+
+User may input a word in Russian or English.
+
+ALWAYS:
+1. Detect the meaning
+2. Convert it to the MAIN ENGLISH WORD
+3. Provide transcription for the ENGLISH word
+4. Give translation into Russian
+5. Provide 2 simple example sentences in ENGLISH
+
+Respond ONLY in JSON format:
+
+{
+  "word": "english word",
+  "transcription": "[phonetic]",
+  "translation": "russian translation",
+  "examples": ["sentence 1", "sentence 2"]
+}
+`
         },
-        {
-          role: "user",
-          content: word,
-        },
+        { role: "user", content: word }
       ],
-      temperature: 0.3,
-    });
+      temperature: 0.3
+    })
 
-    const data = JSON.parse(completion.choices[0].message.content);
+    const text = completion.choices[0].message.content
+    const data = JSON.parse(text)
 
-    // 💾 сохраняем в Supabase
-    await supabase.from("words").insert({
-      user_id: userId,
-      word: data.word,
-      translation: data.translation,
-      transcription: data.transcription,
-      part_of_speech: data.part_of_speech,
-      level: data.level,
-      examples: data.examples,
-    });
-
-    res.json(data);
+    res.json(data)
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Something went wrong" });
+    console.error(err)
+    res.status(500).json({ error: "AI error" })
   }
-});
+})
 
-app.listen(3001, () => console.log("Server running on port 3001"));
+app.listen(3001, () => console.log("Server running"))
