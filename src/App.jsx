@@ -5,7 +5,7 @@ export default function App() {
   const [result, setResult] = useState(null);
 
   const analyzeWord = async () => {
-    const res = await fetch("https://vocab-app-m8ti.onrender.com/", {
+    const res = await fetch("https://vocab-app-m8ti.onrender.com/analyze", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ word }),
