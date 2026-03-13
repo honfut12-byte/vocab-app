@@ -14,6 +14,9 @@ export default function App() {
   const audioChunksRef = useRef([]);
   const recordingTimerRef = useRef(null);
   const streamRef = useRef(null); 
+  
+  // НАШ НОВЫЙ ПРЕДОХРАНИТЕЛЬ
+  const isPressingRef = useRef(false); 
 
   const analyzeWord = async (textToTranslate) => {
     const target = typeof textToTranslate === "string" ? textToTranslate : word;
@@ -33,16 +36,21 @@ export default function App() {
   };
 
   const startRecording = async () => {
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach(track => track.stop());
-      streamRef.current = null;
-    }
+    isPressingRef.current = true; // Фиксируем, что палец нажал на кнопку
 
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      streamRef.current = stream; 
+      if (!streamRef.current) {
+        // Здесь код ждет, пока пользователь нажмет "Разрешить" в окне iOS
+        streamRef.current = await navigator.mediaDevices.getUserMedia({ audio: true });
+      }
+
+      // ПРОВЕРКА: Если пока висело окно разрешений, пользователь убрал палец с кнопки,
+      // мы просто прерываем запуск записи. Разрешение получено, но писать начнем в следующий раз!
+      if (!isPressingRef.current) {
+        return; 
+      }
       
-      mediaRecorderRef.current = new MediaRecorder(stream);
+      mediaRecorderRef.current = new MediaRecorder(streamRef.current);
       audioChunksRef.current = [];
 
       mediaRecorderRef.current.ondataavailable = (event) => {
@@ -67,10 +75,12 @@ export default function App() {
     } catch (error) {
       console.error("Ошибка доступа к микрофону:", error);
       alert("Пожалуйста, разрешите доступ к микрофону в браузере.");
+      isPressingRef.current = false;
     }
   };
 
   const stopRecording = () => {
+    isPressingRef.current = false; // Фиксируем, что палец убрали
     setIsRecording(false); 
 
     if (recordingTimerRef.current) {
@@ -80,13 +90,6 @@ export default function App() {
     if (mediaRecorderRef.current && mediaRecorderRef.current.state === "recording") {
       mediaRecorderRef.current.stop();
     }
-
-    setTimeout(() => {
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach(track => track.stop());
-        streamRef.current = null;
-      }
-    }, 200);
   };
 
   const sendAudioToBackend = async (audioBlob) => {
@@ -137,7 +140,6 @@ export default function App() {
 
   return (
     <>
-      {/* Глобальные стили для победы над черным фоном */}
       <style>{`
         body, html {
           margin: 0;
@@ -156,7 +158,7 @@ export default function App() {
         color: "#000000",         
         backgroundColor: "#ffffff", 
         minHeight: "100vh",
-        boxSizing: "border-box" /* Чтобы отступы не выталкивали контент за пределы экрана */
+        boxSizing: "border-box" 
       }}>
         <h1>📚 LizAli</h1>
 
