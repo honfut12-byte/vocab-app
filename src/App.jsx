@@ -25,7 +25,8 @@ export default function App() {
     setResult(data);
   };
 
-  const startRecording = async () => {
+  const startRecording = async (e) => {
+    if (e) e.preventDefault(); // Защита от выделения текста при клике
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       mediaRecorderRef.current = new MediaRecorder(stream);
@@ -36,7 +37,6 @@ export default function App() {
       };
 
       mediaRecorderRef.current.onstop = async () => {
-        // Универсальный захват: берем родной формат браузера
         const mimeType = mediaRecorderRef.current.mimeType || "audio/webm";
         const audioBlob = new Blob(audioChunksRef.current, { type: mimeType });
         await sendAudioToBackend(audioBlob);
@@ -57,7 +57,8 @@ export default function App() {
     }
   };
 
-  const stopRecording = () => {
+  const stopRecording = (e) => {
+    if (e) e.preventDefault();
     if (recordingTimerRef.current) {
       clearTimeout(recordingTimerRef.current);
     }
@@ -70,7 +71,6 @@ export default function App() {
   const sendAudioToBackend = async (audioBlob) => {
     setIsProcessing(true);
     const formData = new FormData();
-    // Имя файла здесь не так важно, бэкенд будет смотреть на реальный формат (mimeType)
     formData.append("audio", audioBlob, "voice_record");
     formData.append("mode", isSpellingMode ? "spell" : "normal");
 
@@ -112,6 +112,15 @@ export default function App() {
     setNeedsConfirmation(false);
     setRecognizedWord("");
     setIsSpellingMode(true);
+  };
+
+  // Общие CSS-правила для защиты от выделения и "залипания" в Safari/iOS
+  const micButtonSafariFix = {
+    WebkitUserSelect: "none",
+    userSelect: "none",
+    WebkitTouchCallout: "none",
+    touchAction: "manipulation",
+    WebkitTapHighlightColor: "transparent"
   };
 
   return (
@@ -175,6 +184,8 @@ export default function App() {
           onMouseLeave={stopRecording} 
           onTouchStart={startRecording}
           onTouchEnd={stopRecording}
+          draggable={false} // Запрет перетаскивания
+          onContextMenu={(e) => e.preventDefault()} // Блокировка меню по долгому тапу
           style={{ 
             position: "fixed", 
             bottom: "30px", 
@@ -193,7 +204,8 @@ export default function App() {
             justifyContent: "center",
             alignItems: "center",
             boxShadow: "0px 6px 15px rgba(0,0,0,0.3)",
-            transition: "transform 0.1s"
+            transition: "transform 0.1s",
+            ...micButtonSafariFix // Применяем защитные стили
           }}
           title="Удерживайте, чтобы говорить (макс. 30 секунд)"
         >
@@ -202,4 +214,4 @@ export default function App() {
       )}
     </div>
   );
-}
+}s
