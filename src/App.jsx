@@ -33,6 +33,11 @@ export default function App() {
   };
 
   const startRecording = async () => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop());
+      streamRef.current = null;
+    }
+
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       streamRef.current = stream; 
@@ -76,10 +81,12 @@ export default function App() {
       mediaRecorderRef.current.stop();
     }
 
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach(track => track.stop());
-      streamRef.current = null;
-    }
+    setTimeout(() => {
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop());
+        streamRef.current = null;
+      }
+    }, 200);
   };
 
   const sendAudioToBackend = async (audioBlob) => {
@@ -129,116 +136,130 @@ export default function App() {
   };
 
   return (
-    <div style={{ 
-      padding: 40, 
-      fontFamily: "sans-serif", 
-      textAlign: "center", 
-      paddingBottom: "100px",
-      color: "#000000",         // Жестко задаем черный текст для всего приложения
-      backgroundColor: "#ffffff", // Жестко задаем белый фон
-      minHeight: "100vh"        // Чтобы фон растягивался на весь экран
-    }}>
-      <h1>📚 LizAli</h1>
+    <>
+      {/* Глобальные стили для победы над черным фоном */}
+      <style>{`
+        body, html {
+          margin: 0;
+          padding: 0;
+          background-color: #ffffff !important;
+          width: 100%;
+          height: 100%;
+        }
+      `}</style>
 
-      {needsConfirmation ? (
-        <div style={{ background: "#f0f8ff", padding: "20px", borderRadius: "10px", display: "inline-block", color: "#000" }}>
-          <h3>I heard: "{recognizedWord}"</h3>
-          <p>Is this correct?</p>
-          <div style={{ display: "flex", gap: "10px", justifyContent: "center", flexWrap: "wrap" }}>
-            <button onClick={confirmWord} style={{ background: "#4CAF50", color: "white", padding: "10px", border: "none", borderRadius: "5px", cursor: "pointer" }}>✅ Yes, Translate!</button>
-            <button onClick={rejectAndRepeat} style={{ background: "#f44336", color: "white", padding: "10px", border: "none", borderRadius: "5px", cursor: "pointer" }}>🎤 No, repeat</button>
-            <button onClick={rejectAndSpell} style={{ background: "#ff9800", color: "white", padding: "10px", border: "none", borderRadius: "5px", cursor: "pointer" }}>🔤 Spell out loud</button>
-          </div>
-        </div>
-      ) : (
-        <div style={{ 
-          display: "flex", 
-          flexDirection: "column",
-          gap: "15px", 
-          justifyContent: "center",
-          alignItems: "center"
-        }}>
-          
-          {isSpellingMode && (
-            <div style={{ color: "#ff9800", fontWeight: "bold", fontSize: "18px" }}>
-              Spelling mode: Hold the mic and spell the letters! (e.g., C - A - T)
+      <div style={{ 
+        padding: 40, 
+        fontFamily: "sans-serif", 
+        textAlign: "center", 
+        paddingBottom: "100px",
+        color: "#000000",         
+        backgroundColor: "#ffffff", 
+        minHeight: "100vh",
+        boxSizing: "border-box" /* Чтобы отступы не выталкивали контент за пределы экрана */
+      }}>
+        <h1>📚 LizAli</h1>
+
+        {needsConfirmation ? (
+          <div style={{ background: "#f0f8ff", padding: "20px", borderRadius: "10px", display: "inline-block", color: "#000" }}>
+            <h3>I heard: "{recognizedWord}"</h3>
+            <p>Is this correct?</p>
+            <div style={{ display: "flex", gap: "10px", justifyContent: "center", flexWrap: "wrap" }}>
+              <button onClick={confirmWord} style={{ background: "#4CAF50", color: "white", padding: "10px", border: "none", borderRadius: "5px", cursor: "pointer" }}>✅ Yes, Translate!</button>
+              <button onClick={rejectAndRepeat} style={{ background: "#f44336", color: "white", padding: "10px", border: "none", borderRadius: "5px", cursor: "pointer" }}>🎤 No, repeat</button>
+              <button onClick={rejectAndSpell} style={{ background: "#ff9800", color: "white", padding: "10px", border: "none", borderRadius: "5px", cursor: "pointer" }}>🔤 Spell out loud</button>
             </div>
-          )}
-
-          <div style={{ display: "flex", gap: "10px", alignItems: "center", flexWrap: "wrap", justifyContent: "center" }}>
-            <input
-              value={word}
-              onChange={(e) => setWord(e.target.value)}
-              placeholder="Say or type a word"
-              style={{ 
-                padding: 10, 
-                fontSize: 18, 
-                flex: "1", 
-                minWidth: "200px", 
-                maxWidth: "300px",
-                color: "#000000",       // Черный текст внутри инпута
-                backgroundColor: "#fff", // Белый фон инпута
-                border: "2px solid #ccc", // Видимая серая рамка
-                borderRadius: "8px"
-              }}
-            />
-
-            <button onClick={() => analyzeWord(word)} style={{ padding: 10, fontSize: 18, cursor: "pointer", color: "#000", backgroundColor: "#e0e0e0", border: "none", borderRadius: "8px" }}>
-              Translate!
-            </button>
           </div>
-        </div>
-      )}
-
-      {result && !needsConfirmation && (
-        <div style={{ marginTop: 30, textAlign: "left", display: "inline-block", background: "#f9f9f9", padding: "20px", borderRadius: "10px", color: "#000" }}>
-          <h2 style={{ marginTop: 0 }}>{result.word}</h2>
-          <p><b>Transcription:</b> {result.transcription}</p>
-          <p><b>Translation:</b> {result.translation}</p>
-          <p>• {result.examples[0]}</p>
-          <p>• {result.examples[1]}</p>
-        </div>
-      )}
-
-      {!needsConfirmation && (
-        <button 
-          onPointerDown={startRecording} 
-          onPointerUp={stopRecording}
-          onPointerOut={stopRecording} 
-          onPointerCancel={stopRecording} 
-          onContextMenu={(e) => e.preventDefault()}
-          draggable={false}
-          style={{ 
-            position: "fixed", 
-            bottom: "30px", 
-            right: "30px", 
-            zIndex: 1000, 
-            padding: "15px", 
-            fontSize: 28, 
-            cursor: "pointer", 
-            background: isRecording ? "#f44336" : (isSpellingMode ? "#ffb74d" : "#2196F3"),
-            color: "white",
-            borderRadius: "50%",
-            border: "none",
-            width: "70px",
-            height: "70px",
-            display: "flex",
+        ) : (
+          <div style={{ 
+            display: "flex", 
+            flexDirection: "column",
+            gap: "15px", 
             justifyContent: "center",
-            alignItems: "center",
-            boxShadow: "0px 6px 15px rgba(0,0,0,0.3)",
-            transition: "background 0.2s, transform 0.1s",
+            alignItems: "center"
+          }}>
+            
+            {isSpellingMode && (
+              <div style={{ color: "#ff9800", fontWeight: "bold", fontSize: "18px" }}>
+                Spelling mode: Hold the mic and spell the letters! (e.g., C - A - T)
+              </div>
+            )}
 
-            WebkitUserSelect: "none",
-            userSelect: "none",
-            WebkitTouchCallout: "none",
-            touchAction: "none", 
-            WebkitTapHighlightColor: "transparent"
-          }}
-          title="Удерживайте, чтобы говорить (макс. 30 секунд)"
-        >
-          {isProcessing ? "⏳" : "🎤"}
-        </button>
-      )}
-    </div>
+            <div style={{ display: "flex", gap: "10px", alignItems: "center", flexWrap: "wrap", justifyContent: "center" }}>
+              <input
+                value={word}
+                onChange={(e) => setWord(e.target.value)}
+                placeholder="Say or type a word"
+                style={{ 
+                  padding: 10, 
+                  fontSize: 18, 
+                  flex: "1", 
+                  minWidth: "200px", 
+                  maxWidth: "300px",
+                  color: "#000000",       
+                  backgroundColor: "#fff", 
+                  border: "2px solid #ccc", 
+                  borderRadius: "8px"
+                }}
+              />
+
+              <button onClick={() => analyzeWord(word)} style={{ padding: 10, fontSize: 18, cursor: "pointer", color: "#000", backgroundColor: "#e0e0e0", border: "none", borderRadius: "8px" }}>
+                Translate!
+              </button>
+            </div>
+          </div>
+        )}
+
+        {result && !needsConfirmation && (
+          <div style={{ marginTop: 30, textAlign: "left", display: "inline-block", background: "#f9f9f9", padding: "20px", borderRadius: "10px", color: "#000" }}>
+            <h2 style={{ marginTop: 0 }}>{result.word}</h2>
+            <p><b>Transcription:</b> {result.transcription}</p>
+            <p><b>Translation:</b> {result.translation}</p>
+            <p>• {result.examples[0]}</p>
+            <p>• {result.examples[1]}</p>
+          </div>
+        )}
+
+        {!needsConfirmation && (
+          <button 
+            onPointerDown={startRecording} 
+            onPointerUp={stopRecording}
+            onPointerOut={stopRecording} 
+            onPointerCancel={stopRecording} 
+            onContextMenu={(e) => e.preventDefault()}
+            draggable={false}
+            style={{ 
+              position: "fixed", 
+              bottom: "30px", 
+              right: "30px", 
+              zIndex: 1000, 
+              padding: "15px", 
+              fontSize: 28, 
+              cursor: "pointer", 
+              background: isRecording ? "#f44336" : (isSpellingMode ? "#ffb74d" : "#2196F3"),
+              color: "white",
+              borderRadius: "50%",
+              border: "none",
+              width: "70px",
+              height: "70px",
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+              boxShadow: "0px 6px 15px rgba(0,0,0,0.3)",
+              transition: "background 0.2s, transform 0.1s",
+
+              WebkitUserSelect: "none",
+              userSelect: "none",
+              WebkitTouchCallout: "none",
+              touchAction: "none", 
+              WebkitTapHighlightColor: "transparent"
+            }}
+            title="Удерживайте, чтобы говорить (макс. 30 секунд)"
+          >
+            {isProcessing ? "⏳" : "🎤"}
+          </button>
+        )}
+      </div>
+    </>
   );
 }
