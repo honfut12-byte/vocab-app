@@ -14,19 +14,25 @@ export default function App() {
   const audioChunksRef = useRef([]);
   const recordingTimerRef = useRef(null);
 
-  const analyzeWord = async (wordToAnalyze = word) => {
-    if (!wordToAnalyze) return;
-    const res = await fetch("https://vocab-app-m8ti.onrender.com/analyze", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ word: wordToAnalyze }),
-    });
-    const data = await res.json();
-    setResult(data);
+  // Безопасная функция без дефолтных параметров (чтобы не путать минификатор)
+  const analyzeWord = async (textToTranslate) => {
+    const target = typeof textToTranslate === "string" ? textToTranslate : word;
+    if (!target) return;
+    
+    try {
+      const res = await fetch("https://vocab-app-m8ti.onrender.com/analyze", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ word: target }),
+      });
+      const data = await res.json();
+      setResult(data);
+    } catch (error) {
+      console.error("Ошибка при переводе:", error);
+    }
   };
 
-  const startRecording = async (e) => {
-    if (e) e.preventDefault(); // Защита от выделения текста при клике
+  const startRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       mediaRecorderRef.current = new MediaRecorder(stream);
@@ -57,8 +63,7 @@ export default function App() {
     }
   };
 
-  const stopRecording = (e) => {
-    if (e) e.preventDefault();
+  const stopRecording = () => {
     if (recordingTimerRef.current) {
       clearTimeout(recordingTimerRef.current);
     }
@@ -112,15 +117,6 @@ export default function App() {
     setNeedsConfirmation(false);
     setRecognizedWord("");
     setIsSpellingMode(true);
-  };
-
-  // Общие CSS-правила для защиты от выделения и "залипания" в Safari/iOS
-  const micButtonSafariFix = {
-    WebkitUserSelect: "none",
-    userSelect: "none",
-    WebkitTouchCallout: "none",
-    touchAction: "manipulation",
-    WebkitTapHighlightColor: "transparent"
   };
 
   return (
@@ -184,8 +180,6 @@ export default function App() {
           onMouseLeave={stopRecording} 
           onTouchStart={startRecording}
           onTouchEnd={stopRecording}
-          draggable={false} // Запрет перетаскивания
-          onContextMenu={(e) => e.preventDefault()} // Блокировка меню по долгому тапу
           style={{ 
             position: "fixed", 
             bottom: "30px", 
@@ -205,7 +199,13 @@ export default function App() {
             alignItems: "center",
             boxShadow: "0px 6px 15px rgba(0,0,0,0.3)",
             transition: "transform 0.1s",
-            ...micButtonSafariFix // Применяем защитные стили
+
+            // Жесткая блокировка выделения для Safari/iOS через CSS
+            WebkitUserSelect: "none",
+            userSelect: "none",
+            WebkitTouchCallout: "none",
+            touchAction: "none", // Полностью отключает системные жесты (зум, скролл на кнопке)
+            WebkitTapHighlightColor: "transparent"
           }}
           title="Удерживайте, чтобы говорить (макс. 30 секунд)"
         >
@@ -214,4 +214,4 @@ export default function App() {
       )}
     </div>
   );
-}s
+}
