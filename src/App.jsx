@@ -5,6 +5,7 @@ export default function App() {
   const [result, setResult] = useState(null);
 
   const analyzeWord = async () => {
+    // Временно оставляем старый бэкенд, пока не перейдем к БД
     const res = await fetch("https://vocab-app-m8ti.onrender.com/analyze", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -16,22 +17,33 @@ export default function App() {
   };
 
   return (
-    <div style={{ padding: 40, fontFamily: "sans-serif" }}>
-      <h1>📚 Word Trainer</h1>
+    <div style={{ padding: 40, fontFamily: "sans-serif", textAlign: "center" }}>
+      {/* Пункт 3: Новое название */}
+      <h1>📚 LizAli</h1>
 
-      <input
-        value={word}
-        onChange={(e) => setWord(e.target.value)}
-        placeholder="Say or type a word"
-        style={{ padding: 10, fontSize: 18 }}
-      />
+      {/* Пункт 2: Flexbox контейнер для правильных отступов на мобильных */}
+      <div style={{ 
+        display: "flex", 
+        gap: "10px", 
+        flexWrap: "wrap", 
+        justifyContent: "center",
+        alignItems: "center"
+      }}>
+        <input
+          value={word}
+          onChange={(e) => setWord(e.target.value)}
+          placeholder="Say or type a word"
+          style={{ padding: 10, fontSize: 18, flex: "1", minWidth: "200px", maxWidth: "300px" }}
+        />
 
-      <button onClick={analyzeWord} style={{ marginLeft: 10, padding: 10 }}>
-        Analyze
-      </button>
+        {/* Пункт 1: Переименованная кнопка */}
+        <button onClick={analyzeWord} style={{ padding: 10, fontSize: 18, cursor: "pointer" }}>
+          Translate!
+        </button>
+      </div>
 
       {result && (
-        <div style={{ marginTop: 30 }}>
+        <div style={{ marginTop: 30, textAlign: "left", display: "inline-block" }}>
           <h2>{result.word}</h2>
           <p><b>Transcription:</b> {result.transcription}</p>
           <p><b>Translation:</b> {result.translation}</p>
