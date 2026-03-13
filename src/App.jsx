@@ -6,7 +6,7 @@ export default function App() {
 
   const [isRecording, setIsRecording] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [isTranslating, setIsTranslating] = useState(false); // Новый статус для перевода
+  const [isTranslating, setIsTranslating] = useState(false); 
   
   const [recognizedWord, setRecognizedWord] = useState("");
   const [needsConfirmation, setNeedsConfirmation] = useState(false);
@@ -21,7 +21,7 @@ export default function App() {
     const target = typeof textToTranslate === "string" ? textToTranslate : word;
     if (!target) return;
     
-    setIsTranslating(true); // Включаем статус-бар перевода
+    setIsTranslating(true); 
     try {
       const res = await fetch("https://vocab-app-m8ti.onrender.com/analyze", {
         method: "POST",
@@ -33,12 +33,11 @@ export default function App() {
     } catch (error) {
       console.error("Ошибка при переводе:", error);
     } finally {
-      setIsTranslating(false); // Выключаем статус-бар
+      setIsTranslating(false); 
     }
   };
 
   const startRecording = async () => {
-    // Подчищаем старые потоки на всякий случай
     if (streamRef.current) {
       streamRef.current.getTracks().forEach(track => track.stop());
       streamRef.current = null;
@@ -63,7 +62,6 @@ export default function App() {
       mediaRecorderRef.current.start();
       setIsRecording(true);
 
-      // Автоматически останавливаем запись через 30 секунд, если пользователь забыл нажать "Стоп"
       recordingTimerRef.current = setTimeout(() => {
         if (mediaRecorderRef.current && mediaRecorderRef.current.state === "recording") {
           stopRecording();
@@ -87,14 +85,12 @@ export default function App() {
       mediaRecorderRef.current.stop();
     }
 
-    // Мгновенно отключаем микрофон
     if (streamRef.current) {
       streamRef.current.getTracks().forEach(track => track.stop());
       streamRef.current = null;
     }
   };
 
-  // Новая функция: переключатель записи по клику
   const toggleRecording = async (e) => {
     if (e) e.preventDefault();
     if (isRecording) {
@@ -105,7 +101,7 @@ export default function App() {
   };
 
   const sendAudioToBackend = async (audioBlob) => {
-    setIsProcessing(true); // Включаем статус-бар распознавания
+    setIsProcessing(true); 
     const formData = new FormData();
     formData.append("audio", audioBlob, "voice_record");
     formData.append("mode", isSpellingMode ? "spell" : "normal");
@@ -129,7 +125,7 @@ export default function App() {
       alert("Не удалось распознать голос. Проверьте соединение с сервером.");
       setIsSpellingMode(false);
     } finally {
-      setIsProcessing(false); // Выключаем статус-бар
+      setIsProcessing(false); 
     }
   };
 
@@ -161,11 +157,16 @@ export default function App() {
           height: 100%;
         }
         
-        /* Анимация для статус-бара */
         @keyframes pulse {
           0% { opacity: 0.7; transform: scale(0.98); }
           50% { opacity: 1; transform: scale(1.02); }
           100% { opacity: 0.7; transform: scale(0.98); }
+        }
+
+        /* Убираем стандартную синюю обводку браузера при клике на поле ввода */
+        input:focus {
+          outline: none;
+          box-shadow: 0 6px 15px rgba(0,0,0,0.15) !important;
         }
       `}</style>
 
@@ -179,23 +180,23 @@ export default function App() {
         minHeight: "100vh",
         boxSizing: "border-box" 
       }}>
-        <h1>📚 LizAliS</h1>
+        <h1>📚 LizAlis</h1>
 
         {needsConfirmation ? (
-          <div style={{ background: "#f0f8ff", padding: "20px", borderRadius: "10px", display: "inline-block", color: "#000" }}>
+          <div style={{ background: "#f0f8ff", padding: "20px", borderRadius: "20px", display: "inline-block", color: "#000", boxShadow: "0 4px 10px rgba(0,0,0,0.05)" }}>
             <h3>I heard: "{recognizedWord}"</h3>
             <p>Is this correct?</p>
             <div style={{ display: "flex", gap: "10px", justifyContent: "center", flexWrap: "wrap" }}>
-              <button onClick={confirmWord} style={{ background: "#4CAF50", color: "white", padding: "10px", border: "none", borderRadius: "5px", cursor: "pointer" }}>✅ Yes, Translate!</button>
-              <button onClick={rejectAndRepeat} style={{ background: "#f44336", color: "white", padding: "10px", border: "none", borderRadius: "5px", cursor: "pointer" }}>🎤 No, repeat</button>
-              <button onClick={rejectAndSpell} style={{ background: "#ff9800", color: "white", padding: "10px", border: "none", borderRadius: "5px", cursor: "pointer" }}>🔤 Spell out loud</button>
+              <button onClick={confirmWord} style={{ background: "#4CAF50", color: "white", padding: "10px", border: "none", borderRadius: "15px", cursor: "pointer", boxShadow: "0 2px 5px rgba(0,0,0,0.1)" }}>✅ Yes, Translate!</button>
+              <button onClick={rejectAndRepeat} style={{ background: "#f44336", color: "white", padding: "10px", border: "none", borderRadius: "15px", cursor: "pointer", boxShadow: "0 2px 5px rgba(0,0,0,0.1)" }}>🎤 No, repeat</button>
+              <button onClick={rejectAndSpell} style={{ background: "#ff9800", color: "white", padding: "10px", border: "none", borderRadius: "15px", cursor: "pointer", boxShadow: "0 2px 5px rgba(0,0,0,0.1)" }}>🔤 Spell out loud</button>
             </div>
           </div>
         ) : (
           <div style={{ 
             display: "flex", 
             flexDirection: "column",
-            gap: "15px", 
+            gap: "20px", 
             justifyContent: "center",
             alignItems: "center"
           }}>
@@ -206,22 +207,23 @@ export default function App() {
               </div>
             )}
 
-            <div style={{ display: "flex", gap: "10px", alignItems: "center", flexWrap: "wrap", justifyContent: "center" }}>
+            <div style={{ display: "flex", gap: "15px", alignItems: "center", flexWrap: "wrap", justifyContent: "center", width: "100%", maxWidth: "500px" }}>
               <input
                 value={word}
                 onChange={(e) => setWord(e.target.value)}
                 placeholder="Say or type a word"
                 disabled={isProcessing || isTranslating}
                 style={{ 
-                  padding: 10, 
-                  fontSize: 18, 
+                  padding: "15px 25px", 
+                  fontSize: "18px", 
                   flex: "1", 
                   minWidth: "200px", 
-                  maxWidth: "300px",
                   color: "#000000",       
-                  backgroundColor: (isProcessing || isTranslating) ? "#f0f0f0" : "#fff", 
-                  border: "2px solid #ccc", 
-                  borderRadius: "8px"
+                  backgroundColor: (isProcessing || isTranslating) ? "#f5f5f5" : "#ffffff", 
+                  border: "none", 
+                  borderRadius: "25px", // Более круглые края
+                  boxShadow: "0 4px 10px rgba(0,0,0,0.08)", // Мягкая тень
+                  transition: "all 0.3s ease"
                 }}
               />
 
@@ -229,14 +231,17 @@ export default function App() {
                 onClick={() => analyzeWord(word)} 
                 disabled={isProcessing || isTranslating || !word}
                 style={{ 
-                  padding: 10, 
-                  fontSize: 18, 
+                  padding: "15px 30px", 
+                  fontSize: "18px", 
+                  fontWeight: "bold",
                   cursor: (isProcessing || isTranslating || !word) ? "not-allowed" : "pointer", 
-                  color: "#000", 
-                  backgroundColor: "#e0e0e0", 
+                  color: "#0056b3", // Темно-синий текст
+                  backgroundColor: "#e3f2fd", // Нежно-голубой фон
                   border: "none", 
-                  borderRadius: "8px",
-                  opacity: (isProcessing || isTranslating || !word) ? 0.5 : 1
+                  borderRadius: "25px", // Круглая кнопка
+                  boxShadow: "0 4px 10px rgba(0,0,0,0.08)", // Тень как у инпута
+                  opacity: (isProcessing || isTranslating || !word) ? 0.6 : 1,
+                  transition: "all 0.3s ease"
                 }}>
                 Translate!
               </button>
@@ -244,39 +249,39 @@ export default function App() {
           </div>
         )}
 
-        {/* СТАТУС-БАР ЗАГРУЗКИ */}
         {(isProcessing || isTranslating) && (
           <div style={{ marginTop: 40, textAlign: "center" }}>
             <div style={{
               display: "inline-block",
               padding: "15px 30px",
-              background: isProcessing ? "#fff3e0" : "#e0f7fa", // Оранжевый для голоса, синий для ИИ
-              borderRadius: "20px",
+              background: isProcessing ? "#fff3e0" : "#e0f7fa", 
+              borderRadius: "25px",
               color: isProcessing ? "#e65100" : "#006064",
               fontWeight: "bold",
               fontSize: "18px",
               animation: "pulse 1.5s infinite",
-              boxShadow: "0 4px 6px rgba(0,0,0,0.1)"
+              boxShadow: "0 4px 10px rgba(0,0,0,0.08)"
             }}>
               {isProcessing ? "Распознаю голос... 🎧" : "Перевожу... 🧠"}
             </div>
           </div>
         )}
 
-        {/* РЕЗУЛЬТАТ ПЕРЕВОДА */}
         {result && !needsConfirmation && !isProcessing && !isTranslating && (
-          <div style={{ marginTop: 30, textAlign: "left", display: "inline-block", background: "#f9f9f9", padding: "20px", borderRadius: "10px", color: "#000", boxShadow: "0 4px 10px rgba(0,0,0,0.05)" }}>
-            <h2 style={{ marginTop: 0 }}>{result.word}</h2>
-            <p><b>Transcription:</b> {result.transcription}</p>
-            <p><b>Translation:</b> {result.translation}</p>
-            <p>• {result.examples[0]}</p>
-            <p>• {result.examples[1]}</p>
+          <div style={{ marginTop: 30, textAlign: "left", display: "inline-block", background: "#ffffff", padding: "25px", borderRadius: "20px", color: "#000", boxShadow: "0 4px 15px rgba(0,0,0,0.08)", width: "100%", maxWidth: "500px", boxSizing: "border-box" }}>
+            <h2 style={{ marginTop: 0, fontSize: "28px", color: "#333" }}>{result.word}</h2>
+            <p style={{ fontSize: "18px", color: "#666", marginBottom: "20px" }}><b>Transcription:</b> {result.transcription}</p>
+            <div style={{ background: "#f0f8ff", padding: "15px", borderRadius: "15px", marginBottom: "20px" }}>
+              <p style={{ margin: 0, fontSize: "20px", fontWeight: "bold", color: "#0056b3" }}>{result.translation}</p>
+            </div>
+            <p style={{ fontSize: "18px", marginBottom: "10px" }}>• {result.examples[0]}</p>
+            <p style={{ fontSize: "18px" }}>• {result.examples[1]}</p>
           </div>
         )}
 
         {!needsConfirmation && (
           <button 
-            onClick={toggleRecording} // Теперь это простой клик!
+            onClick={toggleRecording} 
             onContextMenu={(e) => e.preventDefault()}
             disabled={isProcessing || isTranslating}
             style={{ 
@@ -289,7 +294,7 @@ export default function App() {
               cursor: (isProcessing || isTranslating) ? "not-allowed" : "pointer", 
               background: isRecording ? "#f44336" : (isSpellingMode ? "#ffb74d" : "#2196F3"),
               color: "white",
-              borderRadius: isRecording ? "20px" : "50%", // Кнопка становится квадратной при записи
+              borderRadius: isRecording ? "20px" : "50%", 
               border: "none",
               width: "70px",
               height: "70px",
@@ -297,7 +302,7 @@ export default function App() {
               justifyContent: "center",
               alignItems: "center",
               boxShadow: "0px 6px 15px rgba(0,0,0,0.3)",
-              transition: "all 0.3s ease", // Плавная анимация формы и цвета
+              transition: "all 0.3s ease", 
               opacity: (isProcessing || isTranslating) ? 0.5 : 1,
 
               WebkitUserSelect: "none",
