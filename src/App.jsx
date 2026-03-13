@@ -13,7 +13,7 @@ export default function App() {
   const mediaRecorderRef = useRef(null);
   const audioChunksRef = useRef([]);
   const recordingTimerRef = useRef(null);
-  const streamRef = useRef(null); // Запоминаем поток для отключения железа
+  const streamRef = useRef(null); 
 
   const analyzeWord = async (textToTranslate) => {
     const target = typeof textToTranslate === "string" ? textToTranslate : word;
@@ -32,11 +32,11 @@ export default function App() {
     }
   };
 
-  const startRecording = async (e) => {
-    if (e) e.preventDefault();
+  // Убрали e.preventDefault()
+  const startRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      streamRef.current = stream; // Сохраняем доступ к микрофону
+      streamRef.current = stream; 
       
       mediaRecorderRef.current = new MediaRecorder(stream);
       audioChunksRef.current = [];
@@ -66,10 +66,9 @@ export default function App() {
     }
   };
 
-  const stopRecording = (e) => {
-    if (e) e.preventDefault();
-    
-    setIsRecording(false); // Мгновенный возврат кнопки в синий цвет
+  // Убрали e.preventDefault()
+  const stopRecording = () => {
+    setIsRecording(false); // Сразу возвращаем синий цвет
 
     if (recordingTimerRef.current) {
       clearTimeout(recordingTimerRef.current);
@@ -79,7 +78,6 @@ export default function App() {
       mediaRecorderRef.current.stop();
     }
 
-    // Жестко отключаем аппаратный микрофон, чтобы погасла оранжевая точка
     if (streamRef.current) {
       streamRef.current.getTracks().forEach(track => track.stop());
       streamRef.current = null;
@@ -188,13 +186,13 @@ export default function App() {
 
       {!needsConfirmation && (
         <button 
-          onMouseDown={startRecording} 
-          onMouseUp={stopRecording}
-          onMouseLeave={stopRecording} 
-          onTouchStart={startRecording}
-          onTouchEnd={stopRecording}
-          draggable={false}
+          // --- ИСПОЛЬЗУЕМ POINTER EVENTS ВМЕСТО MOUSE/TOUCH ---
+          onPointerDown={startRecording} 
+          onPointerUp={stopRecording}
+          onPointerOut={stopRecording} 
+          onPointerCancel={stopRecording} // Сработает, если система перехватит касание
           onContextMenu={(e) => e.preventDefault()}
+          draggable={false}
           style={{ 
             position: "fixed", 
             bottom: "30px", 
@@ -213,9 +211,9 @@ export default function App() {
             justifyContent: "center",
             alignItems: "center",
             boxShadow: "0px 6px 15px rgba(0,0,0,0.3)",
-            transition: "transform 0.1s",
+            transition: "background 0.2s, transform 0.1s", // Плавная смена цвета
 
-            // Магия против Safari: отключаем выделение, меню и зум
+            // CSS-защита остается
             WebkitUserSelect: "none",
             userSelect: "none",
             WebkitTouchCallout: "none",
