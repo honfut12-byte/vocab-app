@@ -9,14 +9,12 @@ const app = express()
 app.use(cors())
 app.use(express.json())
 
-// Настраиваем временное хранилище для аудиофайлов
 const upload = multer({ dest: os.tmpdir() })
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY
 })
 
-// --- СТАРЫЙ МАРШРУТ АНАЛИЗА (без изменений) ---
 app.post("/analyze", async (req, res) => {
   const { word } = req.body
 
@@ -63,24 +61,44 @@ Respond ONLY in JSON format:
   }
 })
 
-// --- НОВЫЙ МАРШРУТ РАСПОЗНАВАНИЯ ГОЛОСА ---
 app.post("/transcribe", upload.single("audio"), async (req, res) => {
-  try {
-    // 1. Берем сохраненный аудиофайл
-    const audioFile = fs.createReadStream(req.file.path)
-    const { mode } = req.body // получаем режим: "normal" или "spell"
+  let filePathWithExt = null;
 
-    // 2. Отправляем аудио в Whisper
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: "No audio file provided" });
+    }
+
+    const tempFilePath = req.file.path;
+    const mimeType = req.file.mimetype || "";
+    
+    // Динамическое расширение в зависимости от устройства
+    let ext = ".webm"; 
+    if (mimeType.includes("mp4") || mimeType.includes("m4a") || mimeType.includes("aac")) {
+      ext = ".m4a"; 
+    } else if (mimeType.includes("ogg")) {
+      ext = ".ogg"; 
+    } else if (mimeType.includes("wav")) {
+      ext = ".wav"; 
+    }
+
+    filePathWithExt = tempFilePath + ext;
+    
+    // Присваиваем файлу правильное расширение
+    fs.renameSync(tempFilePath, filePathWithExt);
+
+    const audioFile = fs.createReadStream(filePathWithExt);
+    const { mode } = req.body;
+
     const transcription = await openai.audio.transcriptions.create({
       file: audioFile,
       model: "whisper-1",
-      language: "en" // Ограничиваем английским для лучшего распознавания слов
-    })
+      language: "en" 
+    });
 
-    let recognizedText = transcription.text
+    let recognizedText = transcription.text;
 
-    // 3. Магия для режима диктовки: просим GPT собрать буквы в слово
-    if (mode === "spell") {
+    if (mode === "spell" && recognizedText) {
       const spellCheck = await openai.chat.completions.create({
         model: "gpt-4o-mini",
         messages: [
@@ -91,20 +109,24 @@ app.post("/transcribe", upload.single("audio"), async (req, res) => {
           { role: "user", content: recognizedText }
         ],
         temperature: 0.1
-      })
-      recognizedText = spellCheck.choices[0].message.content.trim()
+      });
+      recognizedText = spellCheck.choices[0].message.content.trim();
     }
 
-    // 4. Удаляем временный файл, чтобы не засорять сервер
-    fs.unlinkSync(req.file.path)
+    // Удаляем временный файл
+    if (fs.existsSync(filePathWithExt)) {
+      fs.unlinkSync(filePathWithExt);
+    }
 
-    // 5. Отправляем слово обратно на фронтенд
-    res.json({ text: recognizedText })
+    res.json({ text: recognizedText || "" });
 
   } catch (error) {
-    console.error("Ошибка при работе с аудио:", error)
-    if (req.file) fs.unlinkSync(req.file.path) // чистим файл в случае ошибки
-    res.status(500).json({ error: "Transcription failed" })
+    console.error("Ошибка при работе с аудио:", error);
+    
+    if (req.file && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
+    if (filePathWithExt && fs.existsSync(filePathWithExt)) fs.unlinkSync(filePathWithExt);
+    
+    res.status(500).json({ error: "Transcription failed" });
   }
 })
 
