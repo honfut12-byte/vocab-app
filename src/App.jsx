@@ -13,8 +13,8 @@ export default function App() {
   const mediaRecorderRef = useRef(null);
   const audioChunksRef = useRef([]);
   const recordingTimerRef = useRef(null);
+  const streamRef = useRef(null); // Запоминаем поток для отключения железа
 
-  // Безопасная функция без дефолтных параметров (чтобы не путать минификатор)
   const analyzeWord = async (textToTranslate) => {
     const target = typeof textToTranslate === "string" ? textToTranslate : word;
     if (!target) return;
@@ -32,9 +32,12 @@ export default function App() {
     }
   };
 
-  const startRecording = async () => {
+  const startRecording = async (e) => {
+    if (e) e.preventDefault();
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      streamRef.current = stream; // Сохраняем доступ к микрофону
+      
       mediaRecorderRef.current = new MediaRecorder(stream);
       audioChunksRef.current = [];
 
@@ -63,13 +66,23 @@ export default function App() {
     }
   };
 
-  const stopRecording = () => {
+  const stopRecording = (e) => {
+    if (e) e.preventDefault();
+    
+    setIsRecording(false); // Мгновенный возврат кнопки в синий цвет
+
     if (recordingTimerRef.current) {
       clearTimeout(recordingTimerRef.current);
     }
-    if (mediaRecorderRef.current && isRecording) {
+    
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state === "recording") {
       mediaRecorderRef.current.stop();
-      setIsRecording(false);
+    }
+
+    // Жестко отключаем аппаратный микрофон, чтобы погасла оранжевая точка
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop());
+      streamRef.current = null;
     }
   };
 
@@ -180,6 +193,8 @@ export default function App() {
           onMouseLeave={stopRecording} 
           onTouchStart={startRecording}
           onTouchEnd={stopRecording}
+          draggable={false}
+          onContextMenu={(e) => e.preventDefault()}
           style={{ 
             position: "fixed", 
             bottom: "30px", 
@@ -200,11 +215,11 @@ export default function App() {
             boxShadow: "0px 6px 15px rgba(0,0,0,0.3)",
             transition: "transform 0.1s",
 
-            // Жесткая блокировка выделения для Safari/iOS через CSS
+            // Магия против Safari: отключаем выделение, меню и зум
             WebkitUserSelect: "none",
             userSelect: "none",
             WebkitTouchCallout: "none",
-            touchAction: "none", // Полностью отключает системные жесты (зум, скролл на кнопке)
+            touchAction: "none", 
             WebkitTapHighlightColor: "transparent"
           }}
           title="Удерживайте, чтобы говорить (макс. 30 секунд)"
