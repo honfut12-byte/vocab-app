@@ -179,7 +179,7 @@ export default function App() {
         minHeight: "100vh",
         boxSizing: "border-box" 
       }}>
-        <h1>📚 LizAli</h1>
+        <h1>📚 LizAliS</h1>
 
         {needsConfirmation ? (
           <div style={{ background: "#f0f8ff", padding: "20px", borderRadius: "10px", display: "inline-block", color: "#000" }}>
