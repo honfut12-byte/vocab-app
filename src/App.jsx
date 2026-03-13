@@ -32,7 +32,6 @@ export default function App() {
     }
   };
 
-  // Убрали e.preventDefault()
   const startRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -66,9 +65,8 @@ export default function App() {
     }
   };
 
-  // Убрали e.preventDefault()
   const stopRecording = () => {
-    setIsRecording(false); // Сразу возвращаем синий цвет
+    setIsRecording(false); 
 
     if (recordingTimerRef.current) {
       clearTimeout(recordingTimerRef.current);
@@ -131,11 +129,19 @@ export default function App() {
   };
 
   return (
-    <div style={{ padding: 40, fontFamily: "sans-serif", textAlign: "center", paddingBottom: "100px" }}>
+    <div style={{ 
+      padding: 40, 
+      fontFamily: "sans-serif", 
+      textAlign: "center", 
+      paddingBottom: "100px",
+      color: "#000000",         // Жестко задаем черный текст для всего приложения
+      backgroundColor: "#ffffff", // Жестко задаем белый фон
+      minHeight: "100vh"        // Чтобы фон растягивался на весь экран
+    }}>
       <h1>📚 LizAli</h1>
 
       {needsConfirmation ? (
-        <div style={{ background: "#f0f8ff", padding: "20px", borderRadius: "10px", display: "inline-block" }}>
+        <div style={{ background: "#f0f8ff", padding: "20px", borderRadius: "10px", display: "inline-block", color: "#000" }}>
           <h3>I heard: "{recognizedWord}"</h3>
           <p>Is this correct?</p>
           <div style={{ display: "flex", gap: "10px", justifyContent: "center", flexWrap: "wrap" }}>
@@ -164,10 +170,20 @@ export default function App() {
               value={word}
               onChange={(e) => setWord(e.target.value)}
               placeholder="Say or type a word"
-              style={{ padding: 10, fontSize: 18, flex: "1", minWidth: "200px", maxWidth: "300px" }}
+              style={{ 
+                padding: 10, 
+                fontSize: 18, 
+                flex: "1", 
+                minWidth: "200px", 
+                maxWidth: "300px",
+                color: "#000000",       // Черный текст внутри инпута
+                backgroundColor: "#fff", // Белый фон инпута
+                border: "2px solid #ccc", // Видимая серая рамка
+                borderRadius: "8px"
+              }}
             />
 
-            <button onClick={() => analyzeWord(word)} style={{ padding: 10, fontSize: 18, cursor: "pointer" }}>
+            <button onClick={() => analyzeWord(word)} style={{ padding: 10, fontSize: 18, cursor: "pointer", color: "#000", backgroundColor: "#e0e0e0", border: "none", borderRadius: "8px" }}>
               Translate!
             </button>
           </div>
@@ -175,7 +191,7 @@ export default function App() {
       )}
 
       {result && !needsConfirmation && (
-        <div style={{ marginTop: 30, textAlign: "left", display: "inline-block", background: "#f9f9f9", padding: "20px", borderRadius: "10px" }}>
+        <div style={{ marginTop: 30, textAlign: "left", display: "inline-block", background: "#f9f9f9", padding: "20px", borderRadius: "10px", color: "#000" }}>
           <h2 style={{ marginTop: 0 }}>{result.word}</h2>
           <p><b>Transcription:</b> {result.transcription}</p>
           <p><b>Translation:</b> {result.translation}</p>
@@ -186,11 +202,10 @@ export default function App() {
 
       {!needsConfirmation && (
         <button 
-          // --- ИСПОЛЬЗУЕМ POINTER EVENTS ВМЕСТО MOUSE/TOUCH ---
           onPointerDown={startRecording} 
           onPointerUp={stopRecording}
           onPointerOut={stopRecording} 
-          onPointerCancel={stopRecording} // Сработает, если система перехватит касание
+          onPointerCancel={stopRecording} 
           onContextMenu={(e) => e.preventDefault()}
           draggable={false}
           style={{ 
@@ -211,9 +226,8 @@ export default function App() {
             justifyContent: "center",
             alignItems: "center",
             boxShadow: "0px 6px 15px rgba(0,0,0,0.3)",
-            transition: "background 0.2s, transform 0.1s", // Плавная смена цвета
+            transition: "background 0.2s, transform 0.1s",
 
-            // CSS-защита остается
             WebkitUserSelect: "none",
             userSelect: "none",
             WebkitTouchCallout: "none",
