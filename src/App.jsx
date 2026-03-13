@@ -14,8 +14,6 @@ export default function App() {
   const audioChunksRef = useRef([]);
   const recordingTimerRef = useRef(null);
   const streamRef = useRef(null); 
-  
-  // НАШ НОВЫЙ ПРЕДОХРАНИТЕЛЬ
   const isPressingRef = useRef(false); 
 
   const analyzeWord = async (textToTranslate) => {
@@ -36,17 +34,21 @@ export default function App() {
   };
 
   const startRecording = async () => {
-    isPressingRef.current = true; // Фиксируем, что палец нажал на кнопку
+    isPressingRef.current = true;
+
+    // Подчищаем старые потоки на всякий случай
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop());
+      streamRef.current = null;
+    }
 
     try {
-      if (!streamRef.current) {
-        // Здесь код ждет, пока пользователь нажмет "Разрешить" в окне iOS
-        streamRef.current = await navigator.mediaDevices.getUserMedia({ audio: true });
-      }
+      streamRef.current = await navigator.mediaDevices.getUserMedia({ audio: true });
 
-      // ПРОВЕРКА: Если пока висело окно разрешений, пользователь убрал палец с кнопки,
-      // мы просто прерываем запуск записи. Разрешение получено, но писать начнем в следующий раз!
       if (!isPressingRef.current) {
+        // Если палец убрали, пока висело окно разрешений, глушим микрофон и отменяем старт
+        streamRef.current.getTracks().forEach(track => track.stop());
+        streamRef.current = null;
         return; 
       }
       
@@ -80,7 +82,7 @@ export default function App() {
   };
 
   const stopRecording = () => {
-    isPressingRef.current = false; // Фиксируем, что палец убрали
+    isPressingRef.current = false; 
     setIsRecording(false); 
 
     if (recordingTimerRef.current) {
@@ -90,6 +92,14 @@ export default function App() {
     if (mediaRecorderRef.current && mediaRecorderRef.current.state === "recording") {
       mediaRecorderRef.current.stop();
     }
+
+    // ВЕРНУЛИ ЖЕСТКОЕ ОТКЛЮЧЕНИЕ МИКРОФОНА С ЗАДЕРЖКОЙ
+    setTimeout(() => {
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop());
+        streamRef.current = null;
+      }
+    }, 200);
   };
 
   const sendAudioToBackend = async (audioBlob) => {
