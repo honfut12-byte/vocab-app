@@ -149,6 +149,9 @@ export default function App() {
   return (
     <>
       <style>{`
+        /* Подключаем красивый круглый детский шрифт Fredoka */
+        @import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600&display=swap');
+
         body, html {
           margin: 0;
           padding: 0;
@@ -163,27 +166,67 @@ export default function App() {
           100% { opacity: 0.7; transform: scale(0.98); }
         }
 
-        /* Убираем стандартную синюю обводку браузера при клике на поле ввода */
         input:focus {
           outline: none;
-          box-shadow: 0 6px 15px rgba(0,0,0,0.15) !important;
+          box-shadow: 0 6px 15px rgba(255, 105, 180, 0.2) !important; /* Розовая тень при фокусе */
+        }
+
+        /* Настройка красивого названия */
+        .app-title {
+          font-family: 'Fredoka', sans-serif;
+          font-size: 3.5rem;
+          font-weight: 600;
+          margin-bottom: 30px;
+          margin-top: 10px;
+          background: linear-gradient(45deg, #ff758c 0%, #ff7eb3 100%);
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
+          text-shadow: 2px 2px 10px rgba(255, 117, 140, 0.1);
         }
       `}</style>
 
+      {/* ФОН С ИГРУШКАМИ */}
+      <div style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        width: '100%',
+        height: '100%',
+        pointerEvents: 'none', /* Чтобы нельзя было кликнуть на фон */
+        zIndex: 0,
+        overflow: 'hidden',
+        opacity: 0.12, /* Делаем их очень бледными (прозрачными) */
+        fontSize: '4rem',
+        userSelect: 'none'
+      }}>
+        <span style={{ position: 'absolute', top: '5%', left: '8%', transform: 'rotate(-15deg)' }}>🧸</span>
+        <span style={{ position: 'absolute', top: '15%', right: '12%', transform: 'rotate(20deg)' }}>🎈</span>
+        <span style={{ position: 'absolute', top: '45%', left: '4%', transform: 'rotate(10deg)' }}>🦄</span>
+        <span style={{ position: 'absolute', top: '65%', right: '8%', transform: 'rotate(-20deg)' }}>🚗</span>
+        <span style={{ position: 'absolute', bottom: '8%', left: '15%', transform: 'rotate(15deg)' }}>🎀</span>
+        <span style={{ position: 'absolute', top: '35%', right: '25%', transform: 'rotate(-10deg)' }}>🌟</span>
+        <span style={{ position: 'absolute', bottom: '15%', right: '35%', transform: 'rotate(5deg)' }}>🍭</span>
+        <span style={{ position: 'absolute', top: '80%', left: '40%', transform: 'rotate(-5deg)' }}>🌸</span>
+      </div>
+
+      {/* ОСНОВНОЙ КОНТЕНТ (с z-index: 1, чтобы быть поверх фона) */}
       <div style={{ 
+        position: 'relative',
+        zIndex: 1,
         padding: 40, 
-        fontFamily: "sans-serif", 
+        fontFamily: "'Fredoka', sans-serif", /* Меняем шрифт всего приложения */
         textAlign: "center", 
         paddingBottom: "100px",
-        color: "#000000",         
-        backgroundColor: "#ffffff", 
+        color: "#333333",         
         minHeight: "100vh",
         boxSizing: "border-box" 
       }}>
-        <h1>📚 LizAlis</h1>
+        
+        {/* Новое название */}
+        <h1 className="app-title">LizAlis</h1>
 
         {needsConfirmation ? (
-          <div style={{ background: "#f0f8ff", padding: "20px", borderRadius: "20px", display: "inline-block", color: "#000", boxShadow: "0 4px 10px rgba(0,0,0,0.05)" }}>
+          <div style={{ background: "#fff0f5", padding: "20px", borderRadius: "20px", display: "inline-block", color: "#000", boxShadow: "0 4px 10px rgba(0,0,0,0.05)" }}>
             <h3>I heard: "{recognizedWord}"</h3>
             <p>Is this correct?</p>
             <div style={{ display: "flex", gap: "10px", justifyContent: "center", flexWrap: "wrap" }}>
@@ -214,15 +257,16 @@ export default function App() {
                 placeholder="Say or type a word"
                 disabled={isProcessing || isTranslating}
                 style={{ 
+                  fontFamily: "'Fredoka', sans-serif",
                   padding: "15px 25px", 
                   fontSize: "18px", 
                   flex: "1", 
                   minWidth: "200px", 
-                  color: "#000000",       
+                  color: "#333",       
                   backgroundColor: (isProcessing || isTranslating) ? "#f5f5f5" : "#ffffff", 
                   border: "none", 
-                  borderRadius: "25px", // Более круглые края
-                  boxShadow: "0 4px 10px rgba(0,0,0,0.08)", // Мягкая тень
+                  borderRadius: "25px", 
+                  boxShadow: "0 4px 15px rgba(0,0,0,0.06)", 
                   transition: "all 0.3s ease"
                 }}
               />
@@ -231,15 +275,16 @@ export default function App() {
                 onClick={() => analyzeWord(word)} 
                 disabled={isProcessing || isTranslating || !word}
                 style={{ 
+                  fontFamily: "'Fredoka', sans-serif",
                   padding: "15px 30px", 
                   fontSize: "18px", 
-                  fontWeight: "bold",
+                  fontWeight: "600",
                   cursor: (isProcessing || isTranslating || !word) ? "not-allowed" : "pointer", 
-                  color: "#0056b3", // Темно-синий текст
-                  backgroundColor: "#e3f2fd", // Нежно-голубой фон
+                  color: "#d81b60", /* Темно-розовый текст */
+                  backgroundColor: "#fce4ec", /* Нежно-розовый фон кнопки */
                   border: "none", 
-                  borderRadius: "25px", // Круглая кнопка
-                  boxShadow: "0 4px 10px rgba(0,0,0,0.08)", // Тень как у инпута
+                  borderRadius: "25px", 
+                  boxShadow: "0 4px 15px rgba(0,0,0,0.06)", 
                   opacity: (isProcessing || isTranslating || !word) ? 0.6 : 1,
                   transition: "all 0.3s ease"
                 }}>
@@ -254,10 +299,10 @@ export default function App() {
             <div style={{
               display: "inline-block",
               padding: "15px 30px",
-              background: isProcessing ? "#fff3e0" : "#e0f7fa", 
+              background: isProcessing ? "#fff3e0" : "#f3e5f5", /* Оранжевый и нежно-фиолетовый */
               borderRadius: "25px",
-              color: isProcessing ? "#e65100" : "#006064",
-              fontWeight: "bold",
+              color: isProcessing ? "#e65100" : "#6a1b9a",
+              fontWeight: "600",
               fontSize: "18px",
               animation: "pulse 1.5s infinite",
               boxShadow: "0 4px 10px rgba(0,0,0,0.08)"
@@ -268,11 +313,11 @@ export default function App() {
         )}
 
         {result && !needsConfirmation && !isProcessing && !isTranslating && (
-          <div style={{ marginTop: 30, textAlign: "left", display: "inline-block", background: "#ffffff", padding: "25px", borderRadius: "20px", color: "#000", boxShadow: "0 4px 15px rgba(0,0,0,0.08)", width: "100%", maxWidth: "500px", boxSizing: "border-box" }}>
-            <h2 style={{ marginTop: 0, fontSize: "28px", color: "#333" }}>{result.word}</h2>
-            <p style={{ fontSize: "18px", color: "#666", marginBottom: "20px" }}><b>Transcription:</b> {result.transcription}</p>
-            <div style={{ background: "#f0f8ff", padding: "15px", borderRadius: "15px", marginBottom: "20px" }}>
-              <p style={{ margin: 0, fontSize: "20px", fontWeight: "bold", color: "#0056b3" }}>{result.translation}</p>
+          <div style={{ marginTop: 30, textAlign: "left", display: "inline-block", background: "#ffffff", padding: "25px", borderRadius: "20px", color: "#333", boxShadow: "0 4px 20px rgba(0,0,0,0.08)", width: "100%", maxWidth: "500px", boxSizing: "border-box" }}>
+            <h2 style={{ marginTop: 0, fontSize: "28px", color: "#333", fontWeight: "600" }}>{result.word}</h2>
+            <p style={{ fontSize: "18px", color: "#888", marginBottom: "20px" }}><b>Transcription:</b> {result.transcription}</p>
+            <div style={{ background: "#fff0f5", padding: "15px", borderRadius: "15px", marginBottom: "20px" }}>
+              <p style={{ margin: 0, fontSize: "20px", fontWeight: "600", color: "#d81b60" }}>{result.translation}</p>
             </div>
             <p style={{ fontSize: "18px", marginBottom: "10px" }}>• {result.examples[0]}</p>
             <p style={{ fontSize: "18px" }}>• {result.examples[1]}</p>
@@ -292,7 +337,7 @@ export default function App() {
               padding: "15px", 
               fontSize: 28, 
               cursor: (isProcessing || isTranslating) ? "not-allowed" : "pointer", 
-              background: isRecording ? "#f44336" : (isSpellingMode ? "#ffb74d" : "#2196F3"),
+              background: isRecording ? "#f44336" : (isSpellingMode ? "#ffb74d" : "#ff4081"), /* Розовая кнопка микрофона */
               color: "white",
               borderRadius: isRecording ? "20px" : "50%", 
               border: "none",
@@ -301,7 +346,7 @@ export default function App() {
               display: "flex",
               justifyContent: "center",
               alignItems: "center",
-              boxShadow: "0px 6px 15px rgba(0,0,0,0.3)",
+              boxShadow: "0px 6px 20px rgba(255, 64, 129, 0.4)", /* Цветная тень от кнопки */
               transition: "all 0.3s ease", 
               opacity: (isProcessing || isTranslating) ? 0.5 : 1,
 
