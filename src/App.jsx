@@ -6,6 +6,8 @@ export default function App() {
 
   const [isRecording, setIsRecording] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isTranslating, setIsTranslating] = useState(false); // Новый статус для перевода
+  
   const [recognizedWord, setRecognizedWord] = useState("");
   const [needsConfirmation, setNeedsConfirmation] = useState(false);
   const [isSpellingMode, setIsSpellingMode] = useState(false);
@@ -14,12 +16,12 @@ export default function App() {
   const audioChunksRef = useRef([]);
   const recordingTimerRef = useRef(null);
   const streamRef = useRef(null); 
-  const isPressingRef = useRef(false); 
 
   const analyzeWord = async (textToTranslate) => {
     const target = typeof textToTranslate === "string" ? textToTranslate : word;
     if (!target) return;
     
+    setIsTranslating(true); // Включаем статус-бар перевода
     try {
       const res = await fetch("https://vocab-app-m8ti.onrender.com/analyze", {
         method: "POST",
@@ -30,12 +32,12 @@ export default function App() {
       setResult(data);
     } catch (error) {
       console.error("Ошибка при переводе:", error);
+    } finally {
+      setIsTranslating(false); // Выключаем статус-бар
     }
   };
 
   const startRecording = async () => {
-    isPressingRef.current = true;
-
     // Подчищаем старые потоки на всякий случай
     if (streamRef.current) {
       streamRef.current.getTracks().forEach(track => track.stop());
@@ -44,13 +46,6 @@ export default function App() {
 
     try {
       streamRef.current = await navigator.mediaDevices.getUserMedia({ audio: true });
-
-      if (!isPressingRef.current) {
-        // Если палец убрали, пока висело окно разрешений, глушим микрофон и отменяем старт
-        streamRef.current.getTracks().forEach(track => track.stop());
-        streamRef.current = null;
-        return; 
-      }
       
       mediaRecorderRef.current = new MediaRecorder(streamRef.current);
       audioChunksRef.current = [];
@@ -68,6 +63,7 @@ export default function App() {
       mediaRecorderRef.current.start();
       setIsRecording(true);
 
+      // Автоматически останавливаем запись через 30 секунд, если пользователь забыл нажать "Стоп"
       recordingTimerRef.current = setTimeout(() => {
         if (mediaRecorderRef.current && mediaRecorderRef.current.state === "recording") {
           stopRecording();
@@ -77,12 +73,10 @@ export default function App() {
     } catch (error) {
       console.error("Ошибка доступа к микрофону:", error);
       alert("Пожалуйста, разрешите доступ к микрофону в браузере.");
-      isPressingRef.current = false;
     }
   };
 
   const stopRecording = () => {
-    isPressingRef.current = false; 
     setIsRecording(false); 
 
     if (recordingTimerRef.current) {
@@ -93,17 +87,25 @@ export default function App() {
       mediaRecorderRef.current.stop();
     }
 
-    // ВЕРНУЛИ ЖЕСТКОЕ ОТКЛЮЧЕНИЕ МИКРОФОНА С ЗАДЕРЖКОЙ
-    setTimeout(() => {
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach(track => track.stop());
-        streamRef.current = null;
-      }
-    }, 200);
+    // Мгновенно отключаем микрофон
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop());
+      streamRef.current = null;
+    }
+  };
+
+  // Новая функция: переключатель записи по клику
+  const toggleRecording = async (e) => {
+    if (e) e.preventDefault();
+    if (isRecording) {
+      stopRecording();
+    } else {
+      await startRecording();
+    }
   };
 
   const sendAudioToBackend = async (audioBlob) => {
-    setIsProcessing(true);
+    setIsProcessing(true); // Включаем статус-бар распознавания
     const formData = new FormData();
     formData.append("audio", audioBlob, "voice_record");
     formData.append("mode", isSpellingMode ? "spell" : "normal");
@@ -127,7 +129,7 @@ export default function App() {
       alert("Не удалось распознать голос. Проверьте соединение с сервером.");
       setIsSpellingMode(false);
     } finally {
-      setIsProcessing(false);
+      setIsProcessing(false); // Выключаем статус-бар
     }
   };
 
@@ -157,6 +159,13 @@ export default function App() {
           background-color: #ffffff !important;
           width: 100%;
           height: 100%;
+        }
+        
+        /* Анимация для статус-бара */
+        @keyframes pulse {
+          0% { opacity: 0.7; transform: scale(0.98); }
+          50% { opacity: 1; transform: scale(1.02); }
+          100% { opacity: 0.7; transform: scale(0.98); }
         }
       `}</style>
 
@@ -193,7 +202,7 @@ export default function App() {
             
             {isSpellingMode && (
               <div style={{ color: "#ff9800", fontWeight: "bold", fontSize: "18px" }}>
-                Spelling mode: Hold the mic and spell the letters! (e.g., C - A - T)
+                Spelling mode: Tap the mic and spell the letters! (e.g., C - A - T)
               </div>
             )}
 
@@ -202,6 +211,7 @@ export default function App() {
                 value={word}
                 onChange={(e) => setWord(e.target.value)}
                 placeholder="Say or type a word"
+                disabled={isProcessing || isTranslating}
                 style={{ 
                   padding: 10, 
                   fontSize: 18, 
@@ -209,21 +219,53 @@ export default function App() {
                   minWidth: "200px", 
                   maxWidth: "300px",
                   color: "#000000",       
-                  backgroundColor: "#fff", 
+                  backgroundColor: (isProcessing || isTranslating) ? "#f0f0f0" : "#fff", 
                   border: "2px solid #ccc", 
                   borderRadius: "8px"
                 }}
               />
 
-              <button onClick={() => analyzeWord(word)} style={{ padding: 10, fontSize: 18, cursor: "pointer", color: "#000", backgroundColor: "#e0e0e0", border: "none", borderRadius: "8px" }}>
+              <button 
+                onClick={() => analyzeWord(word)} 
+                disabled={isProcessing || isTranslating || !word}
+                style={{ 
+                  padding: 10, 
+                  fontSize: 18, 
+                  cursor: (isProcessing || isTranslating || !word) ? "not-allowed" : "pointer", 
+                  color: "#000", 
+                  backgroundColor: "#e0e0e0", 
+                  border: "none", 
+                  borderRadius: "8px",
+                  opacity: (isProcessing || isTranslating || !word) ? 0.5 : 1
+                }}>
                 Translate!
               </button>
             </div>
           </div>
         )}
 
-        {result && !needsConfirmation && (
-          <div style={{ marginTop: 30, textAlign: "left", display: "inline-block", background: "#f9f9f9", padding: "20px", borderRadius: "10px", color: "#000" }}>
+        {/* СТАТУС-БАР ЗАГРУЗКИ */}
+        {(isProcessing || isTranslating) && (
+          <div style={{ marginTop: 40, textAlign: "center" }}>
+            <div style={{
+              display: "inline-block",
+              padding: "15px 30px",
+              background: isProcessing ? "#fff3e0" : "#e0f7fa", // Оранжевый для голоса, синий для ИИ
+              borderRadius: "20px",
+              color: isProcessing ? "#e65100" : "#006064",
+              fontWeight: "bold",
+              fontSize: "18px",
+              animation: "pulse 1.5s infinite",
+              boxShadow: "0 4px 6px rgba(0,0,0,0.1)"
+            }}>
+              {isProcessing ? "Распознаю голос... 🎧" : "Перевожу... 🧠"}
+            </div>
+          </div>
+        )}
+
+        {/* РЕЗУЛЬТАТ ПЕРЕВОДА */}
+        {result && !needsConfirmation && !isProcessing && !isTranslating && (
+          <div style={{ marginTop: 30, textAlign: "left", display: "inline-block", background: "#f9f9f9", padding: "20px", borderRadius: "10px", color: "#000", boxShadow: "0 4px 10px rgba(0,0,0,0.05)" }}>
             <h2 style={{ marginTop: 0 }}>{result.word}</h2>
             <p><b>Transcription:</b> {result.transcription}</p>
             <p><b>Translation:</b> {result.translation}</p>
@@ -234,12 +276,9 @@ export default function App() {
 
         {!needsConfirmation && (
           <button 
-            onPointerDown={startRecording} 
-            onPointerUp={stopRecording}
-            onPointerOut={stopRecording} 
-            onPointerCancel={stopRecording} 
+            onClick={toggleRecording} // Теперь это простой клик!
             onContextMenu={(e) => e.preventDefault()}
-            draggable={false}
+            disabled={isProcessing || isTranslating}
             style={{ 
               position: "fixed", 
               bottom: "30px", 
@@ -247,10 +286,10 @@ export default function App() {
               zIndex: 1000, 
               padding: "15px", 
               fontSize: 28, 
-              cursor: "pointer", 
+              cursor: (isProcessing || isTranslating) ? "not-allowed" : "pointer", 
               background: isRecording ? "#f44336" : (isSpellingMode ? "#ffb74d" : "#2196F3"),
               color: "white",
-              borderRadius: "50%",
+              borderRadius: isRecording ? "20px" : "50%", // Кнопка становится квадратной при записи
               border: "none",
               width: "70px",
               height: "70px",
@@ -258,17 +297,18 @@ export default function App() {
               justifyContent: "center",
               alignItems: "center",
               boxShadow: "0px 6px 15px rgba(0,0,0,0.3)",
-              transition: "background 0.2s, transform 0.1s",
+              transition: "all 0.3s ease", // Плавная анимация формы и цвета
+              opacity: (isProcessing || isTranslating) ? 0.5 : 1,
 
               WebkitUserSelect: "none",
               userSelect: "none",
               WebkitTouchCallout: "none",
-              touchAction: "none", 
+              touchAction: "manipulation", 
               WebkitTapHighlightColor: "transparent"
             }}
-            title="Удерживайте, чтобы говорить (макс. 30 секунд)"
+            title="Нажмите, чтобы начать/остановить запись"
           >
-            {isProcessing ? "⏳" : "🎤"}
+            {isRecording ? "🛑" : "🎤"}
           </button>
         )}
       </div>
