@@ -27,19 +27,19 @@ app.post("/analyze", async (req, res) => {
           content: `
 You are a vocabulary teacher for kids.
 
-User may input a word in Russian or English.
+User may input a word or a short phrase in Russian or English.
 
 ALWAYS:
-1. Detect the meaning
-2. Convert it to the MAIN ENGLISH WORD
-3. Provide transcription for the ENGLISH word
-4. Give translation into Russian
-5. Provide 2 simple example sentences in ENGLISH
+1. Detect the language.
+2. Determine the TARGET ENGLISH word or phrase (if input is Russian, translate to English; if input is English, keep it English).
+3. Provide transcription for the ENGLISH text.
+4. Give the Russian translation of the text.
+5. Provide 2 simple example sentences in ENGLISH using this text.
 
 Respond ONLY in JSON format:
 
 {
-  "word": "english word",
+  "word": "english text",
   "transcription": "[phonetic]",
   "translation": "russian translation",
   "examples": ["sentence 1", "sentence 2"]
@@ -72,7 +72,7 @@ app.post("/transcribe", upload.single("audio"), async (req, res) => {
     const tempFilePath = req.file.path;
     const mimeType = req.file.mimetype || "";
     
-    // Динамическое расширение в зависимости от устройства
+    // Динамическое расширение
     let ext = ".webm"; 
     if (mimeType.includes("mp4") || mimeType.includes("m4a") || mimeType.includes("aac")) {
       ext = ".m4a"; 
@@ -83,17 +83,15 @@ app.post("/transcribe", upload.single("audio"), async (req, res) => {
     }
 
     filePathWithExt = tempFilePath + ext;
-    
-    // Присваиваем файлу правильное расширение
     fs.renameSync(tempFilePath, filePathWithExt);
 
     const audioFile = fs.createReadStream(filePathWithExt);
     const { mode } = req.body;
 
+    // Отправляем в Whisper без жесткого указания языка (АВТООПРЕДЕЛЕНИЕ)
     const transcription = await openai.audio.transcriptions.create({
       file: audioFile,
-      model: "whisper-1",
-      language: "en" 
+      model: "whisper-1"
     });
 
     let recognizedText = transcription.text;
@@ -113,7 +111,6 @@ app.post("/transcribe", upload.single("audio"), async (req, res) => {
       recognizedText = spellCheck.choices[0].message.content.trim();
     }
 
-    // Удаляем временный файл
     if (fs.existsSync(filePathWithExt)) {
       fs.unlinkSync(filePathWithExt);
     }
