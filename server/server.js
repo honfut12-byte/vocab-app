@@ -9,12 +9,14 @@ const app = express()
 app.use(cors())
 app.use(express.json())
 
+// Настройка загрузки временных аудиофайлов
 const upload = multer({ dest: os.tmpdir() })
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY
 })
 
+// 1. АНАЛИЗ СЛОВА / ФРАЗЫ (GPT-4o-mini)
 app.post("/analyze", async (req, res) => {
   const { word } = req.body
 
@@ -27,7 +29,7 @@ app.post("/analyze", async (req, res) => {
           content: `
 You are a vocabulary teacher for kids. User input is a word, a short phrase, or a full sentence.
 
-CRITICAL SAFETY RULE: If the input contains profanity, adult content, violence, insults, or inappropriate words, you MUST reject it.
+CRITICAL SAFETY RULE: If the input contains profanity, adult content, violence, insults, or any inappropriate words, you MUST reject it.
 If rejected, respond EXACTLY with this JSON:
 {
   "word": "Oops! 🙈",
@@ -38,10 +40,10 @@ If rejected, respond EXACTLY with this JSON:
 }
 
 CRITICAL TRANSLATION RULE:
-- The "word" field MUST ALWAYS BE IN ENGLISH. If the user speaks English, keep it exactly as they said it. If Russian, translate the ENTIRE phrase to English.
-- The "translation" field MUST ALWAYS BE IN RUSSIAN. If the user speaks Russian, keep it exactly as they said it. If English, translate the ENTIRE phrase to Russian.
+- The "word" field MUST ALWAYS BE IN ENGLISH.
+- The "translation" field MUST ALWAYS BE IN RUSSIAN.
 - Provide transcription (without brackets) for the English text, and 2 simple English example sentences.
-- ADD a "gif_query" field: extract 1-2 main English keywords from the phrase optimized for GIF search engines (e.g., for "I want to buy a computer", return "computer"; for "hi how are you", return "hello").
+- ADD a "gif_query" field: extract 1-2 main English keywords optimized for GIF search engines (e.g., for "I want to buy a computer", return "computer").
 Respond ONLY in JSON.
 `
         },
@@ -50,91 +52,119 @@ Respond ONLY in JSON.
       temperature: 0.3
     })
 
-    const text = completion.choices[0].message.content
-    res.json(JSON.parse(text))
+    const resultText = completion.choices[0].message.content
+    res.json(JSON.parse(resultText))
   } catch (err) {
-    console.error(err)
+    console.error("GPT Error:", err)
     res.status(500).json({ error: "AI error" })
   }
 })
 
-// --- ИСПОЛЬЗУЕМ KLIPY API (через совместимость с Tenor v2) ---
+// 2. ПОИСК ГИФОК (KLiPy API с защитой от ошибок)
 app.post("/generate-image", async (req, res) => {
   const { word } = req.body
-  if (!word) return res.status(400).json({ error: "No word provided" });
+  console.log("--- GIF search for:", word)
 
   try {
-    const klipyApiKey = process.env.KLIPY_API_KEY;
+    const klipyApiKey = process.env.KLIPY_API_KEY
     if (!klipyApiKey) {
-      return res.status(500).json({ error: "KLiPy API key is missing on the server" });
+      console.error("KLIPY_API_KEY is missing!")
+      return res.status(500).json({ error: "Server config error" })
     }
 
-    // Обращаемся к api.klipy.com/v2, который 1в1 копирует Tenor
-    const response = await fetch(`https://api.klipy.com/v2/search?q=${encodeURIComponent(word)}&key=${klipyApiKey}&limit=1&contentfilter=high&media_filter=minimal`);
-    const data = await response.json();
+    // Запрос к KLiPy (совместимость с Tenor v2)
+    const response = await fetch(`https://api.klipy.co/v2/search?q=${encodeURIComponent(word)}&key=${klipyApiKey}&limit=1&contentfilter=high`)
+    const data = await response.json()
 
-    if (data.results && data.results.length > 0) {
-      // Ищем картинку точно там же, где она была у Tenor
-      const imageUrl = data.results[0].media_formats.tinygif.url; 
-      res.json({ imageUrl }); 
-    } else {
-      res.status(404).json({ error: "No GIF found for this word" });
+    if (data && data.results && data.results.length > 0) {
+      const res0 = data.results[0]
+      let imageUrl = null
+
+      // Ищем URL в разных форматах (защищенный поиск)
+      if (res0.media_formats) {
+        if (res0.media_formats.tinygif && res0.media_formats.tinygif.url) {
+          imageUrl = res0.media_formats.tinygif.url
+        } else if (res0.media_formats.gif && res0.media_formats.gif.url) {
+          imageUrl = res0.media_formats.gif.url
+        }
+      }
+
+      // Запасной вариант - корневой URL
+      if (!imageUrl && res0.url) {
+        imageUrl = res0.url
+      }
+
+      if (imageUrl) {
+        console.log("Success! Found URL:", imageUrl)
+        return res.json({ imageUrl })
+      }
     }
+
+    console.warn("GIF not found in KLiPy for:", word)
+    res.status(404).json({ error: "Not found" })
+
   } catch (error) {
-    console.error("KLiPy error:", error);
-    res.status(500).json({ error: "GIF fetch failed" });
+    console.error("KLiPy Route Error:", error)
+    res.status(500).json({ error: "Network error" })
   }
-});
+})
 
+// 3. ОЗВУЧКА (OpenAI TTS)
 app.post("/speak", async (req, res) => {
-  const { text } = req.body;
-  if (!text) return res.status(400).json({ error: "No text provided" });
+  const { text } = req.body
+  if (!text) return res.status(400).json({ error: "No text" })
 
   try {
     const mp3 = await openai.audio.speech.create({
       model: "tts-1",
-      voice: "nova", 
+      voice: "nova", // Мягкий женский голос
       input: text,
-    });
-    const buffer = Buffer.from(await mp3.arrayBuffer());
-    res.set({'Content-Type': 'audio/mpeg'});
-    res.send(buffer);
+    })
+    
+    const buffer = Buffer.from(await mp3.arrayBuffer())
+    res.set({'Content-Type': 'audio/mpeg'})
+    res.send(buffer)
   } catch (error) {
-    console.error("TTS error:", error);
-    res.status(500).json({ error: "TTS failed" });
-  }
-});
-
-app.post("/transcribe", upload.single("audio"), async (req, res) => {
-  let filePathWithExt = null;
-  try {
-    if (!req.file) return res.status(400).json({ error: "No audio" });
-    const tempFilePath = req.file.path;
-    filePathWithExt = tempFilePath + ".webm";
-    fs.renameSync(tempFilePath, filePathWithExt);
-    const audioFile = fs.createReadStream(filePathWithExt);
-    const { mode } = req.body;
-
-    const transcription = await openai.audio.transcriptions.create({
-      file: audioFile,
-      model: "whisper-1"
-    });
-
-    let recognizedText = transcription.text;
-    if (mode === "spell" && recognizedText) {
-        const spellCheck = await openai.chat.completions.create({
-          model: "gpt-4o-mini",
-          messages: [{role: "system", content: "Combine phonetics/letters into one English word. Return ONLY word."}, {role: "user", content: recognizedText}],
-          temperature: 0.1
-        });
-        recognizedText = spellCheck.choices[0].message.content.trim();
-    }
-    if (fs.existsSync(filePathWithExt)) fs.unlinkSync(filePathWithExt);
-    res.json({ text: recognizedText || "" });
-  } catch (error) {
-    if (filePathWithExt && fs.existsSync(filePathWithExt)) fs.unlinkSync(filePathWithExt);
-    res.status(500).json({ error: "Failed" });
+    console.error("TTS Error:", error)
+    res.status(500).json({ error: "TTS failed" })
   }
 })
 
-app.listen(3001, () => console.log("Server running on port 3001"))
+// 4. РАСПОЗНАВАНИЕ ГОЛОСА (Whisper-1)
+app.post("/transcribe", upload.single("audio"), async (req, res) => {
+  let filePathWithExt = null
+  try {
+    if (!req.file) return res.status(400).json({ error: "No audio" })
+    
+    const tempFilePath = req.file.path
+    filePathWithExt = tempFilePath + ".webm"
+    fs.renameSync(tempFilePath, filePathWithExt)
+    
+    const transcription = await openai.audio.transcriptions.create({
+      file: fs.createReadStream(filePathWithExt),
+      model: "whisper-1"
+    })
+
+    let recognizedText = transcription.text
+    
+    // Если включен режим Spell, исправляем опечатки через GPT
+    if (req.body.mode === "spell" && recognizedText) {
+        const spellCheck = await openai.chat.completions.create({
+          model: "gpt-4o-mini",
+          messages: [{role: "system", content: "Return ONLY the corrected English word."}, {role: "user", content: recognizedText}],
+          temperature: 0.1
+        })
+        recognizedText = spellCheck.choices[0].message.content.trim()
+    }
+    
+    if (fs.existsSync(filePathWithExt)) fs.unlinkSync(filePathWithExt)
+    res.json({ text: recognizedText || "" })
+  } catch (error) {
+    if (filePathWithExt && fs.existsSync(filePathWithExt)) fs.unlinkSync(filePathWithExt)
+    console.error("Whisper Error:", error)
+    res.status(500).json({ error: "Failed" })
+  }
+})
+
+const PORT = process.env.PORT || 3001
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`))
