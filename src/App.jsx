@@ -74,11 +74,11 @@ export default function App() {
         ));
         setModalImage(data.imageUrl);
       } else {
-        alert("Не удалось нарисовать картинку 😔 Попробуй другое слово.");
+        alert("Не удалось найти картинку 😔 Попробуй другое слово.");
       }
     } catch (error) {
       console.error("Image error:", error);
-      alert("Ошибка сервера. Не удалось нарисовать.");
+      alert("Ошибка сервера. Не удалось загрузить картинку.");
     } finally {
       setIsDrawing(false);
     }
@@ -158,19 +158,42 @@ export default function App() {
   };
 
   return (
-    <div style={{ height: "100dvh", width: "100vw", backgroundColor: "#fff5f8", fontFamily: "'Fredoka', sans-serif", position: "relative", overflow: "hidden" }}>
+    // ДОБАВЛЕНО: position: 'fixed', top: 0, left: 0 для полной фиксации экрана
+    <div style={{ height: "100dvh", width: "100vw", position: "fixed", top: 0, left: 0, backgroundColor: "#fff5f8", fontFamily: "'Fredoka', sans-serif", overflow: "hidden" }}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600&display=swap');
-        body, html { margin: 0; padding: 0; }
+        
+        /* ЖЕСТКАЯ БЛОКИРОВКА СКРОЛЛА ДЛЯ BODY И HTML */
+        body, html { 
+          margin: 0; 
+          padding: 0; 
+          width: 100%; 
+          height: 100%; 
+          overflow: hidden; 
+          overscroll-behavior: none; /* Убиваем эффект резинки на iOS */
+          touch-action: none; /* Запрещаем свайпы по экрану вне чата */
+          -webkit-user-select: none;
+          user-select: none;
+        }
+
         @keyframes pulse { 0% { opacity: 0.7; } 50% { opacity: 1; } 100% { opacity: 0.7; } }
         @keyframes spin { 100% { transform: rotate(360deg); } }
         @keyframes slideIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-        input:focus { outline: none; }
-        .chat-container::-webkit-scrollbar { display: none; }
-        .chat-container { -ms-overflow-style: none; scrollbar-width: none; }
         
-        /* Жесткая центровка для круглых кнопок */
+        input:focus { outline: none; }
+        
+        /* НАСТРОЙКИ СКРОЛЛА ИСКЛЮЧИТЕЛЬНО ДЛЯ ЧАТА */
+        .chat-container::-webkit-scrollbar { display: none; }
+        .chat-container { 
+          -ms-overflow-style: none; 
+          scrollbar-width: none; 
+          overflow-y: auto; 
+          -webkit-overflow-scrolling: touch; /* Плавный инерционный скролл iOS */
+          overscroll-behavior-y: contain; /* Не дает скроллу выйти за пределы чата */
+          touch-action: pan-y; /* Разрешаем только свайпы вверх-вниз */
+        }
+        
         .action-button {
           border: none;
           border-radius: 50%;
@@ -205,16 +228,16 @@ export default function App() {
           <h1 style={{ margin: 0, fontSize: "2.2rem", fontWeight: "600", background: "linear-gradient(45deg, #ff758c 0%, #ff7eb3 100%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>LizAlis</h1>
         </div>
 
-        <div className="chat-container" style={{ flex: "1 1 auto", overflowY: "auto", padding: "20px", display: "flex", flexDirection: "column", gap: "15px" }}>
+        <div className="chat-container" style={{ flex: "1 1 auto", padding: "20px", display: "flex", flexDirection: "column", gap: "15px" }}>
           
           {chatHistory.map((msg) => (
             <div key={msg.id} style={{ alignSelf: msg.sender === "user" ? "flex-end" : "flex-start", maxWidth: "85%", animation: "slideIn 0.3s ease-out", position: 'relative' }}>
               {msg.sender === "user" ? (
-                <div style={{ background: "linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%)", color: "#d81b60", padding: "12px 20px", borderRadius: "20px 20px 0 20px", fontSize: "18px", fontWeight: "500", boxShadow: "0 2px 8px rgba(255, 154, 158, 0.3)" }}>
+                <div style={{ background: "linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%)", color: "#d81b60", padding: "12px 20px", borderRadius: "20px 20px 0 20px", fontSize: "18px", fontWeight: "500", boxShadow: "0 2px 8px rgba(255, 154, 158, 0.3)", WebkitUserSelect: "text", userSelect: "text" }}>
                   {msg.text}
                 </div>
               ) : msg.type === "result" ? (
-                <div style={{ background: "#ffffff", padding: "20px", paddingRight: "85px", borderRadius: "20px 20px 20px 0", color: "#333", boxShadow: "0 4px 15px rgba(0,0,0,0.06)", minWidth: "250px", position: "relative" }}>
+                <div style={{ background: "#ffffff", padding: "20px", paddingRight: "85px", borderRadius: "20px 20px 20px 0", color: "#333", boxShadow: "0 4px 15px rgba(0,0,0,0.06)", minWidth: "250px", position: "relative", WebkitUserSelect: "text", userSelect: "text" }}>
                   
                   <div style={{ position: 'absolute', top: '15px', right: '15px', display: 'flex', gap: '8px' }}>
                     <button 
@@ -250,7 +273,7 @@ export default function App() {
                   )}
                 </div>
               ) : (
-                <div style={{ background: "#ffffff", color: "#333", padding: "12px 20px", borderRadius: "20px 20px 20px 0", fontSize: "18px", boxShadow: "0 2px 8px rgba(0,0,0,0.05)" }}>
+                <div style={{ background: "#ffffff", color: "#333", padding: "12px 20px", borderRadius: "20px 20px 20px 0", fontSize: "18px", boxShadow: "0 2px 8px rgba(0,0,0,0.05)", WebkitUserSelect: "text", userSelect: "text" }}>
                   {msg.text}
                 </div>
               )}
@@ -259,7 +282,7 @@ export default function App() {
 
           {isProcessing && <div style={{ alignSelf: "flex-start" }}><div style={{ background: "#fff3e0", color: "#e65100", padding: "10px 20px", borderRadius: "15px", animation: "pulse 1.5s infinite" }}>Распознаю... 🎧</div></div>}
           {isTranslating && <div style={{ alignSelf: "flex-start" }}><div style={{ background: "#f3e5f5", color: "#6a1b9a", padding: "10px 20px", borderRadius: "15px", animation: "pulse 1.5s infinite" }}>Перевожу... 🧠</div></div>}
-          {isDrawing && <div style={{ alignSelf: "flex-start" }}><div style={{ background: "#e8f5e9", color: "#1b5e20", padding: "10px 20px", borderRadius: "15px", animation: "pulse 1.5s infinite" }}>Рисую мультик... 🎨</div></div>}
+          {isDrawing && <div style={{ alignSelf: "flex-start" }}><div style={{ background: "#e8f5e9", color: "#1b5e20", padding: "10px 20px", borderRadius: "15px", animation: "pulse 1.5s infinite" }}>Ищу картинку... 🎨</div></div>}
 
           <div ref={messagesEndRef} style={{ height: "1px" }} />
         </div>
@@ -267,7 +290,6 @@ export default function App() {
         <div style={{ flex: "0 0 auto", padding: "15px 20px 25px 20px", background: "rgba(255, 255, 255, 0.9)", backdropFilter: "blur(10px)", borderTop: "1px solid rgba(0,0,0,0.05)", display: "flex", gap: "10px", alignItems: "center" }}>
           <input value={word} onChange={(e) => setWord(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleMainButtonClick()} placeholder="Напиши слово или фразу..." disabled={isProcessing || isTranslating || isDrawing} style={{ fontFamily: "'Fredoka', sans-serif", height: "55px", padding: "0 20px", fontSize: "18px", flex: "1", color: "#333", backgroundColor: "#f5f5f5", border: "1px solid transparent", borderRadius: "28px", boxSizing: "border-box" }} />
           
-          {/* ИСПРАВЛЕННАЯ КНОПКА МИКРОФОНА */}
           <button onClick={handleMainButtonClick} disabled={isProcessing || isTranslating || isDrawing} style={{ height: "55px", width: "55px", flexShrink: 0, cursor: "pointer", background: word.trim() ? "#2196F3" : (isRecording ? "#f44336" : "#ff4081"), color: "white", borderRadius: isRecording && !word.trim() ? "15px" : "50%", border: "none", fontSize: "24px", boxShadow: "0 4px 15px rgba(0,0,0,0.1)", transition: "all 0.3s ease", display: "flex", alignItems: "center", justifyContent: "center", padding: 0, margin: 0, lineHeight: 1, boxSizing: "border-box" }}>
             {word.trim() ? "🚀" : (isRecording ? "🛑" : "🎤")}
           </button>
@@ -279,7 +301,6 @@ export default function App() {
           <div onClick={(e) => e.stopPropagation()} style={{ position: 'relative', background: 'white', padding: '15px', borderRadius: '25px', boxShadow: '0 10px 30px rgba(0,0,0,0.15)', maxWidth: '280px', width: '90%', display: 'flex', flexDirection: 'column' }}>
             <img src={modalImage} alt="Generated cartoon" style={{ width: '100%', height: 'auto', maxHeight: '300px', objectFit: 'contain', borderRadius: '15px', display: 'block' }} />
             
-            {/* ИСПРАВЛЕННЫЙ КРЕСТИК */}
             <button onClick={() => setModalImage(null)} style={{ position: 'absolute', top: '-10px', right: '-10px', width: '32px', height: '32px', borderRadius: '50%', background: '#f44336', color: 'white', border: '3px solid white', fontSize: '16px', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 5px rgba(0,0,0,0.2)', padding: 0, margin: 0, lineHeight: 1, flexShrink: 0, boxSizing: "border-box" }}>✕</button>
           </div>
         </div>
