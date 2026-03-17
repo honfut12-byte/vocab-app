@@ -15,7 +15,6 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY
 })
 
-// 1. АНАЛИЗ СЛОВА И ПЕРЕВОД (С детским фильтром)
 app.post("/analyze", async (req, res) => {
   const { word } = req.body
 
@@ -26,7 +25,7 @@ app.post("/analyze", async (req, res) => {
         {
           role: "system",
           content: `
-You are a vocabulary teacher for kids. User input is a word or short phrase.
+You are a vocabulary teacher for kids. User input is a word, a short phrase, or a full sentence.
 
 CRITICAL SAFETY RULE: If the input contains profanity, adult content (e.g., "секс", "порно"), violence, insults, or any inappropriate words for children in any language, you MUST reject it. 
 If rejected, respond EXACTLY with this JSON and nothing else:
@@ -38,7 +37,9 @@ If rejected, respond EXACTLY with this JSON and nothing else:
 }
 
 If the word is safe:
-Detect language (RU/EN). ALWAYS provide target ENGLISH text, its phonetic transcription (without brackets, e.g., 'kæt'), Russian translation, and 2 simple English example sentences.
+Detect language (RU/EN). ALWAYS provide target ENGLISH text. 
+IMPORTANT: If the user inputs a full phrase or sentence, translate the ENTIRE phrase/sentence. Do not extract just one word. The "word" field MUST contain the complete translation.
+Provide its phonetic transcription (without brackets, e.g., 'kæt'), Russian translation of the whole text, and 2 simple English example sentences.
 Respond ONLY in JSON format.
 `
         },
@@ -55,7 +56,6 @@ Respond ONLY in JSON format.
   }
 })
 
-// 2. ГЕНЕРАЦИЯ КАРТИНКИ (Экономный DALL-E 2)
 app.post("/generate-image", async (req, res) => {
   const { word } = req.body
   if (!word) return res.status(400).json({ error: "No word provided" });
@@ -63,7 +63,8 @@ app.post("/generate-image", async (req, res) => {
   try {
     const response = await openai.images.generate({
       model: "dall-e-2", 
-      prompt: `A cute colorful friendly cartoon illustration for children of: ${word}. Simple shapes, white background, kids style.`,
+      // Новый промпт: читаемый смысл + стиль Смешариков (круглые персонажи, яркие цвета)
+      prompt: `A clear, educational cartoon illustration for a child to easily guess the meaning of: "${word}". The style should feature cute, perfectly round, chubby animal characters with big expressive eyes, bright vibrant colors, and simple scenic backgrounds (resembling the aesthetic of spherical cartoon animals), original and non-copyrighted.`,
       n: 1,
       size: "256x256", 
       response_format: "url"
@@ -78,7 +79,6 @@ app.post("/generate-image", async (req, res) => {
   }
 });
 
-// 3. НОВЫЙ МАРШРУТ: ОЗВУЧКА СЛОВА (OpenAI TTS)
 app.post("/speak", async (req, res) => {
   const { text } = req.body;
   if (!text) return res.status(400).json({ error: "No text provided" });
@@ -86,7 +86,7 @@ app.post("/speak", async (req, res) => {
   try {
     const mp3 = await openai.audio.speech.create({
       model: "tts-1",
-      voice: "nova", // nova - красивый, мягкий женский голос
+      voice: "nova", 
       input: text,
     });
     
@@ -99,7 +99,6 @@ app.post("/speak", async (req, res) => {
   }
 });
 
-// 4. РАСПОЗНАВАНИЕ ГОЛОСА (Whisper)
 app.post("/transcribe", upload.single("audio"), async (req, res) => {
   let filePathWithExt = null;
   try {
