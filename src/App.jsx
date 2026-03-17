@@ -3,7 +3,7 @@ import { useState, useRef, useEffect } from "react";
 export default function App() {
   const [word, setWord] = useState("");
   const [chatHistory, setChatHistory] = useState([
-    { id: 1, sender: "bot", type: "welcome", text: "Привет! Я LizAlis 🎀 Напиши или скажи мне слово, и я его переведу!" }
+    { id: 1, sender: "bot", type: "welcome", text: "Привет! Я LizAlis 🎀 Напиши или скажи мне слово или целую фразу!" }
   ]);
 
   const [isRecording, setIsRecording] = useState(false);
@@ -24,7 +24,6 @@ export default function App() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [chatHistory, isProcessing, isTranslating, isDrawing]);
 
-  // --- ОЗВУЧКА ЧЕРЕЗ OPENAI ---
   const playAudio = async (text) => {
     if (!text) return;
     setIsPlayingAudio(true);
@@ -55,7 +54,6 @@ export default function App() {
     }
   };
 
-  // --- ГЕНЕРАЦИЯ КАРТИНКИ ---
   const handleGenerateImage = async (wordToDraw, messageId) => {
     if (!wordToDraw) return;
     setIsDrawing(true);
@@ -172,18 +170,19 @@ export default function App() {
         .chat-container::-webkit-scrollbar { display: none; }
         .chat-container { -ms-overflow-style: none; scrollbar-width: none; }
         
+        /* ИСПРАВЛЕННЫЕ СТИЛИ КНОПОК */
         .action-button {
           border: none;
           border-radius: 50%;
-          width: 45px;
-          height: 45px;
+          width: 34px; /* Меньше размер */
+          height: 34px; 
           display: flex;
-          alignItems: center;
-          justifyContent: center;
+          align-items: center; /* Исправлено для CSS */
+          justify-content: center; /* Исправлено для CSS */
           cursor: pointer;
           transition: all 0.2s ease;
           box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-          font-size: 20px;
+          font-size: 16px; /* Меньше иконка */
         }
         .action-button:hover:not(:disabled) { transform: scale(1.05); }
         .action-button:active:not(:disabled) { transform: scale(0.95); }
@@ -211,21 +210,11 @@ export default function App() {
                   {msg.text}
                 </div>
               ) : msg.type === "result" ? (
-                <div style={{ background: "#ffffff", padding: "20px", borderRadius: "20px 20px 20px 0", color: "#333", boxShadow: "0 4px 15px rgba(0,0,0,0.06)", minWidth: "250px", paddingBottom: '70px' }}>
-                  <h2 style={{ margin: "0 0 5px 0", fontSize: "26px", color: "#333", fontWeight: "600" }}>{msg.result.word}</h2>
-                  <p style={{ margin: "0 0 15px 0", fontSize: "16px", color: "#888", fontStyle: "italic" }}>/{msg.result.transcription}/</p>
-                  <div style={{ background: "#fff0f5", padding: "12px 15px", borderRadius: "12px", marginBottom: "15px" }}>
-                    <p style={{ margin: 0, fontSize: "20px", fontWeight: "600", color: "#d81b60" }}>{msg.result.translation}</p>
-                  </div>
+                // ОТСТУП СПРАВА УВЕЛИЧЕН (paddingRight: "85px"), ЧТОБЫ ТЕКСТ НЕ НАЕЗЖАЛ НА КНОПКИ
+                <div style={{ background: "#ffffff", padding: "20px", paddingRight: "85px", borderRadius: "20px 20px 20px 0", color: "#333", boxShadow: "0 4px 15px rgba(0,0,0,0.06)", minWidth: "250px", position: "relative" }}>
                   
-                  {msg.result.transcription !== "no-no" && (
-                    <div style={{ fontSize: "16px", color: "#555", lineHeight: "1.4" }}>
-                      <p style={{ margin: "0 0 8px 0" }}>• {msg.result.examples[0]}</p>
-                      <p style={{ margin: 0 }}>• {msg.result.examples[1]}</p>
-                    </div>
-                  )}
-
-                  <div style={{ position: 'absolute', bottom: '15px', right: '15px', display: 'flex', gap: '10px' }}>
+                  {/* КНОПКИ В ПРАВОМ ВЕРХНЕМ УГЛУ */}
+                  <div style={{ position: 'absolute', top: '15px', right: '15px', display: 'flex', gap: '8px' }}>
                     <button 
                       className="action-button" 
                       onClick={() => playAudio(msg.result.word)}
@@ -244,6 +233,19 @@ export default function App() {
                       {msg.result.generatedImageUrl ? '🖼️' : '🎨'}
                     </button>
                   </div>
+
+                  <h2 style={{ margin: "0 0 5px 0", fontSize: "24px", color: "#333", fontWeight: "600", lineHeight: "1.2" }}>{msg.result.word}</h2>
+                  <p style={{ margin: "0 0 15px 0", fontSize: "16px", color: "#888", fontStyle: "italic" }}>/{msg.result.transcription}/</p>
+                  <div style={{ background: "#fff0f5", padding: "12px 15px", borderRadius: "12px", marginBottom: "15px" }}>
+                    <p style={{ margin: 0, fontSize: "20px", fontWeight: "600", color: "#d81b60", lineHeight: "1.3" }}>{msg.result.translation}</p>
+                  </div>
+                  
+                  {msg.result.transcription !== "no-no" && (
+                    <div style={{ fontSize: "16px", color: "#555", lineHeight: "1.4" }}>
+                      <p style={{ margin: "0 0 8px 0" }}>• {msg.result.examples[0]}</p>
+                      <p style={{ margin: 0 }}>• {msg.result.examples[1]}</p>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div style={{ background: "#ffffff", color: "#333", padding: "12px 20px", borderRadius: "20px 20px 20px 0", fontSize: "18px", boxShadow: "0 2px 8px rgba(0,0,0,0.05)" }}>
@@ -261,18 +263,21 @@ export default function App() {
         </div>
 
         <div style={{ flex: "0 0 auto", padding: "15px 20px 25px 20px", background: "rgba(255, 255, 255, 0.9)", backdropFilter: "blur(10px)", borderTop: "1px solid rgba(0,0,0,0.05)", display: "flex", gap: "10px", alignItems: "center" }}>
-          <input value={word} onChange={(e) => setWord(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleMainButtonClick()} placeholder="Напиши слово..." disabled={isProcessing || isTranslating || isDrawing} style={{ fontFamily: "'Fredoka', sans-serif", height: "55px", padding: "0 20px", fontSize: "18px", flex: "1", color: "#333", backgroundColor: "#f5f5f5", border: "1px solid transparent", borderRadius: "28px", boxSizing: "border-box" }} />
+          <input value={word} onChange={(e) => setWord(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleMainButtonClick()} placeholder="Напиши слово или фразу..." disabled={isProcessing || isTranslating || isDrawing} style={{ fontFamily: "'Fredoka', sans-serif", height: "55px", padding: "0 20px", fontSize: "18px", flex: "1", color: "#333", backgroundColor: "#f5f5f5", border: "1px solid transparent", borderRadius: "28px", boxSizing: "border-box" }} />
           <button onClick={handleMainButtonClick} disabled={isProcessing || isTranslating || isDrawing} style={{ height: "55px", width: "55px", flexShrink: 0, cursor: "pointer", background: word.trim() ? "#2196F3" : (isRecording ? "#f44336" : "#ff4081"), color: "white", borderRadius: isRecording && !word.trim() ? "15px" : "50%", border: "none", fontSize: "24px", boxShadow: "0 4px 15px rgba(0,0,0,0.1)", transition: "all 0.3s ease" }}>
             {word.trim() ? "🚀" : (isRecording ? "🛑" : "🎤")}
           </button>
         </div>
       </div>
 
+      {/* НОВОЕ КОМПАКТНОЕ МОДАЛЬНОЕ ОКНО */}
       {modalImage && (
-        <div onClick={() => setModalImage(null)} style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000, animation: 'fadeIn 0.3s ease' }}>
-          <div onClick={(e) => e.stopPropagation()} style={{ position: 'relative', background: 'white', padding: '10px', borderRadius: '25px', boxShadow: '0 10px 25px rgba(0,0,0,0.3)', maxWidth: '90%', width: '400px' }}>
-            <img src={modalImage} alt="Generated cartoon" style={{ width: '100%', height: 'auto', borderRadius: '20px', display: 'block' }} />
-            <button onClick={() => setModalImage(null)} style={{ position: 'absolute', top: '-15px', right: '-15px', width: '40px', height: '40px', borderRadius: '50%', background: '#f44336', color: 'white', border: '4px solid white', fontSize: '20px', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 5px rgba(0,0,0,0.2)' }}>✕</button>
+        <div onClick={() => setModalImage(null)} style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000, animation: 'fadeIn 0.3s ease' }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ position: 'relative', background: 'white', padding: '15px', borderRadius: '25px', boxShadow: '0 10px 30px rgba(0,0,0,0.15)', maxWidth: '280px', width: '90%', display: 'flex', flexDirection: 'column' }}>
+            {/* Картинка не растягивается (objectFit: 'contain') и ограничена по высоте */}
+            <img src={modalImage} alt="Generated cartoon" style={{ width: '100%', height: 'auto', maxHeight: '300px', objectFit: 'contain', borderRadius: '15px', display: 'block' }} />
+            
+            <button onClick={() => setModalImage(null)} style={{ position: 'absolute', top: '-10px', right: '-10px', width: '32px', height: '32px', borderRadius: '50%', background: '#f44336', color: 'white', border: '3px solid white', fontSize: '16px', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 5px rgba(0,0,0,0.2)' }}>✕</button>
           </div>
         </div>
       )}
