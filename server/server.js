@@ -31,6 +31,7 @@ CRITICAL SAFETY RULE: If the input contains profanity, adult content, violence, 
 If rejected, respond EXACTLY with this JSON:
 {
   "word": "Oops! 🙈",
+  "gif_query": "no",
   "transcription": "no-no",
   "translation": "Это слово не подходит для нашего словарика",
   "examples": ["Let's learn something else!", "Давай выучим другое слово!"]
@@ -40,6 +41,7 @@ CRITICAL TRANSLATION RULE:
 - The "word" field MUST ALWAYS BE IN ENGLISH. If the user speaks English, keep it exactly as they said it. If Russian, translate the ENTIRE phrase to English.
 - The "translation" field MUST ALWAYS BE IN RUSSIAN. If the user speaks Russian, keep it exactly as they said it. If English, translate the ENTIRE phrase to Russian.
 - Provide transcription (without brackets) for the English text, and 2 simple English example sentences.
+- ADD a "gif_query" field: extract 1-2 main English keywords from the phrase optimized for GIF search engines (e.g., for "I want to buy a computer", return "computer"; for "hi how are you", return "hello").
 Respond ONLY in JSON.
 `
         },
@@ -56,7 +58,7 @@ Respond ONLY in JSON.
   }
 })
 
-// --- ИСПОЛЬЗУЕМ KLIPY API ---
+// --- ИСПОЛЬЗУЕМ KLIPY API (через совместимость с Tenor v2) ---
 app.post("/generate-image", async (req, res) => {
   const { word } = req.body
   if (!word) return res.status(400).json({ error: "No word provided" });
@@ -67,18 +69,13 @@ app.post("/generate-image", async (req, res) => {
       return res.status(500).json({ error: "KLiPy API key is missing on the server" });
     }
 
-    // Идем в KLiPy за гифкой
-    const response = await fetch(`https://api.klipy.co/v1/gifs/search?q=${encodeURIComponent(word)}&apikey=${klipyApiKey}&limit=1`);
+    // Обращаемся к api.klipy.com/v2, который 1в1 копирует Tenor
+    const response = await fetch(`https://api.klipy.com/v2/search?q=${encodeURIComponent(word)}&key=${klipyApiKey}&limit=1&contentfilter=high&media_filter=minimal`);
     const data = await response.json();
 
-    let imageUrl = null;
-    if (data.data && data.data.length > 0) {
-      const item = data.data[0];
-      // Пытаемся безопасно извлечь URL (KLiPy отдает данные, похожие на GIPHY)
-      imageUrl = item.images?.downsized?.url || item.images?.original?.url || item.url;
-    }
-
-    if (imageUrl) {
+    if (data.results && data.results.length > 0) {
+      // Ищем картинку точно там же, где она была у Tenor
+      const imageUrl = data.results[0].media_formats.tinygif.url; 
       res.json({ imageUrl }); 
     } else {
       res.status(404).json({ error: "No GIF found for this word" });
