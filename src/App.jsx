@@ -3,7 +3,6 @@ import { useState, useRef, useEffect } from "react";
 export default function App() {
   const [word, setWord] = useState("");
   
-  // Состояние для хранения истории чата
   const [chatHistory, setChatHistory] = useState([
     { 
       id: 1, 
@@ -26,10 +25,8 @@ export default function App() {
   const recordingTimerRef = useRef(null);
   const streamRef = useRef(null); 
   
-  // Реф для автоматического скролла вниз
   const messagesEndRef = useRef(null);
 
-  // Авто-скролл при добавлении новых сообщений
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [chatHistory, isProcessing, isTranslating, needsConfirmation]);
@@ -38,9 +35,8 @@ export default function App() {
     const target = typeof textToTranslate === "string" ? textToTranslate : word;
     if (!target.trim()) return;
     
-    // Добавляем сообщение пользователя в чат
     setChatHistory(prev => [...prev, { id: Date.now(), sender: "user", text: target }]);
-    setWord(""); // Очищаем поле ввода
+    setWord(""); 
     setNeedsConfirmation(false);
     
     setIsTranslating(true); 
@@ -52,7 +48,6 @@ export default function App() {
       });
       const data = await res.json();
       
-      // Добавляем ответ бота в чат
       setChatHistory(prev => [...prev, { id: Date.now() + 1, sender: "bot", type: "result", result: data }]);
     } catch (error) {
       console.error("Ошибка при переводе:", error);
@@ -119,13 +114,11 @@ export default function App() {
   const handleMainButtonClick = async (e) => {
     if (e) e.preventDefault();
     
-    // Если в поле ввода есть текст, кнопка работает как "Отправить"
     if (word.trim()) {
       analyzeWord(word);
       return;
     }
 
-    // Иначе работает как микрофон
     if (isRecording) {
       stopRecording();
     } else {
@@ -170,10 +163,9 @@ export default function App() {
 
   return (
     <div style={{ 
-      display: "flex", 
-      flexDirection: "column", 
-      height: "100dvh", // 100dvh для правильного отображения на мобильных (учитывая панели браузера)
-      backgroundColor: "#fff5f8", // Очень светлый розовый фон приложения
+      height: "100dvh", 
+      width: "100vw", // Занимаем весь экран
+      backgroundColor: "#fff5f8", 
       fontFamily: "'Fredoka', sans-serif",
       position: "relative",
       overflow: "hidden"
@@ -196,12 +188,11 @@ export default function App() {
 
         input:focus { outline: none; }
         
-        /* Скрываем скроллбар для красоты, но оставляем скроллинг */
         .chat-container::-webkit-scrollbar { display: none; }
         .chat-container { -ms-overflow-style: none; scrollbar-width: none; }
       `}</style>
 
-      {/* ФОН С ИГРУШКАМИ */}
+      {/* ФОН С ИГРУШКАМИ - он остается на весь экран */}
       <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 0, overflow: 'hidden', opacity: 0.12, fontSize: '4rem', userSelect: 'none' }}>
         <span style={{ position: 'absolute', top: '5%', left: '8%', transform: 'rotate(-15deg)' }}>🧸</span>
         <span style={{ position: 'absolute', top: '15%', right: '12%', transform: 'rotate(20deg)' }}>🎈</span>
@@ -212,210 +203,208 @@ export default function App() {
         <span style={{ position: 'absolute', bottom: '25%', right: '5%', transform: 'rotate(5deg)' }}>🍭</span>
       </div>
 
-      {/* ШАПКА ЧАТА (Header) */}
-      <div style={{ 
-        flex: "0 0 auto", 
-        padding: "15px 20px", 
-        background: "rgba(255, 255, 255, 0.9)", 
-        backdropFilter: "blur(10px)",
-        borderBottom: "1px solid rgba(255, 117, 140, 0.2)",
-        zIndex: 10,
-        textAlign: "center",
-        boxShadow: "0 2px 10px rgba(0,0,0,0.03)"
-      }}>
-        <h1 style={{ 
-          margin: 0, 
-          fontSize: "2.2rem", 
-          fontWeight: "600",
-          background: "linear-gradient(45deg, #ff758c 0%, #ff7eb3 100%)",
-          WebkitBackgroundClip: "text",
-          WebkitTextFillColor: "transparent",
-          textShadow: "2px 2px 10px rgba(255, 117, 140, 0.1)"
-        }}>LizAlis</h1>
-      </div>
-
-      {/* ОБЛАСТЬ СООБЩЕНИЙ (Чат) */}
-      <div className="chat-container" style={{ 
-        flex: "1 1 auto", 
-        overflowY: "auto", 
-        padding: "20px", 
-        zIndex: 1,
-        display: "flex",
+      {/* ЦЕНТРАЛЬНЫЙ КОНТЕЙНЕР-МЕССЕНДЖЕР (Адаптация для планшетов) */}
+      <div style={{
+        maxWidth: "700px", // Максимальная ширина для планшетов/ПК
+        margin: "0 auto",  // Центрирование
+        height: "100%",
+        display: "flex", 
         flexDirection: "column",
-        gap: "15px"
+        position: "relative",
+        zIndex: 1,
+        backgroundColor: "rgba(255, 255, 255, 0.4)", // Едва заметная подложка
+        boxShadow: "0 0 30px rgba(0,0,0,0.03)" // Мягкая тень по бокам на больших экранах
       }}>
         
-        {chatHistory.map((msg) => (
-          <div key={msg.id} style={{
-            alignSelf: msg.sender === "user" ? "flex-end" : "flex-start",
-            maxWidth: "85%",
-            animation: "slideIn 0.3s ease-out"
-          }}>
-            {msg.sender === "user" ? (
-              // Пузырь пользователя (запрос)
-              <div style={{
-                background: "linear-gradient(135deg, #ff9a9e 0%, #fecfef 99%, #fecfef 100%)",
-                color: "#d81b60",
-                padding: "12px 20px",
-                borderRadius: "20px 20px 0 20px",
-                fontSize: "18px",
-                fontWeight: "500",
-                boxShadow: "0 2px 8px rgba(255, 154, 158, 0.3)"
-              }}>
-                {msg.text}
-              </div>
-            ) : (
-              // Сообщения бота
-              msg.type === "welcome" || msg.type === "error" ? (
-                // Текстовое сообщение от бота
+        {/* ШАПКА ЧАТА */}
+        <div style={{ 
+          flex: "0 0 auto", 
+          padding: "15px 20px", 
+          background: "rgba(255, 255, 255, 0.85)", 
+          backdropFilter: "blur(10px)",
+          borderBottom: "1px solid rgba(255, 117, 140, 0.2)",
+          textAlign: "center"
+        }}>
+          <h1 style={{ 
+            margin: 0, 
+            fontSize: "2.2rem", 
+            fontWeight: "600",
+            background: "linear-gradient(45deg, #ff758c 0%, #ff7eb3 100%)",
+            WebkitBackgroundClip: "text",
+            WebkitTextFillColor: "transparent",
+            textShadow: "2px 2px 10px rgba(255, 117, 140, 0.1)"
+          }}>LizAlis</h1>
+        </div>
+
+        {/* ОБЛАСТЬ СООБЩЕНИЙ */}
+        <div className="chat-container" style={{ 
+          flex: "1 1 auto", 
+          overflowY: "auto", 
+          padding: "20px", 
+          display: "flex",
+          flexDirection: "column",
+          gap: "15px"
+        }}>
+          
+          {chatHistory.map((msg) => (
+            <div key={msg.id} style={{
+              alignSelf: msg.sender === "user" ? "flex-end" : "flex-start",
+              maxWidth: "85%",
+              animation: "slideIn 0.3s ease-out"
+            }}>
+              {msg.sender === "user" ? (
                 <div style={{
-                  background: "#ffffff",
-                  color: "#333",
+                  background: "linear-gradient(135deg, #ff9a9e 0%, #fecfef 99%, #fecfef 100%)",
+                  color: "#d81b60",
                   padding: "12px 20px",
-                  borderRadius: "20px 20px 20px 0",
+                  borderRadius: "20px 20px 0 20px",
                   fontSize: "18px",
-                  boxShadow: "0 2px 8px rgba(0,0,0,0.05)"
+                  fontWeight: "500",
+                  boxShadow: "0 2px 8px rgba(255, 154, 158, 0.3)"
                 }}>
                   {msg.text}
                 </div>
               ) : (
-                // Карточка с результатом перевода
-                <div style={{
-                  background: "#ffffff",
-                  padding: "20px",
-                  borderRadius: "20px 20px 20px 0",
-                  color: "#333",
-                  boxShadow: "0 4px 15px rgba(0,0,0,0.06)",
-                  minWidth: "250px"
-                }}>
-                  <h2 style={{ margin: "0 0 5px 0", fontSize: "26px", color: "#333", fontWeight: "600" }}>
-                    {msg.result.word}
-                  </h2>
-                  <p style={{ margin: "0 0 15px 0", fontSize: "16px", color: "#888", fontStyle: "italic" }}>
-                    [{msg.result.transcription.replace(/[\[\]]/g, "")}] {/* Очищаем от случайных двойных скобок */}
-                  </p>
-                  
-                  <div style={{ background: "#fff0f5", padding: "12px 15px", borderRadius: "12px", marginBottom: "15px" }}>
-                    <p style={{ margin: 0, fontSize: "20px", fontWeight: "600", color: "#d81b60" }}>
-                      {msg.result.translation}
+                msg.type === "welcome" || msg.type === "error" ? (
+                  <div style={{
+                    background: "#ffffff",
+                    color: "#333",
+                    padding: "12px 20px",
+                    borderRadius: "20px 20px 20px 0",
+                    fontSize: "18px",
+                    boxShadow: "0 2px 8px rgba(0,0,0,0.05)"
+                  }}>
+                    {msg.text}
+                  </div>
+                ) : (
+                  <div style={{
+                    background: "#ffffff",
+                    padding: "20px",
+                    borderRadius: "20px 20px 20px 0",
+                    color: "#333",
+                    boxShadow: "0 4px 15px rgba(0,0,0,0.06)",
+                    minWidth: "250px"
+                  }}>
+                    <h2 style={{ margin: "0 0 5px 0", fontSize: "26px", color: "#333", fontWeight: "600" }}>
+                      {msg.result.word}
+                    </h2>
+                    <p style={{ margin: "0 0 15px 0", fontSize: "16px", color: "#888", fontStyle: "italic" }}>
+                      [{msg.result.transcription.replace(/[\[\]]/g, "")}]
                     </p>
+                    
+                    <div style={{ background: "#fff0f5", padding: "12px 15px", borderRadius: "12px", marginBottom: "15px" }}>
+                      <p style={{ margin: 0, fontSize: "20px", fontWeight: "600", color: "#d81b60" }}>
+                        {msg.result.translation}
+                      </p>
+                    </div>
+                    
+                    <div style={{ fontSize: "16px", color: "#555", lineHeight: "1.4" }}>
+                      <p style={{ margin: "0 0 8px 0" }}>• {msg.result.examples[0]}</p>
+                      <p style={{ margin: 0 }}>• {msg.result.examples[1]}</p>
+                    </div>
                   </div>
-                  
-                  <div style={{ fontSize: "16px", color: "#555", lineHeight: "1.4" }}>
-                    <p style={{ margin: "0 0 8px 0" }}>• {msg.result.examples[0]}</p>
-                    <p style={{ margin: 0 }}>• {msg.result.examples[1]}</p>
-                  </div>
-                </div>
-              )
-            )}
-          </div>
-        ))}
-
-        {/* Индикатор записи / распознавания */}
-        {isProcessing && (
-          <div style={{ alignSelf: "flex-start", animation: "slideIn 0.3s ease-out" }}>
-            <div style={{ background: "#fff3e0", color: "#e65100", padding: "12px 20px", borderRadius: "20px 20px 20px 0", fontSize: "16px", fontWeight: "500", animation: "pulse 1.5s infinite", boxShadow: "0 2px 8px rgba(230, 81, 0, 0.1)" }}>
-              Распознаю голос... 🎧
+                )
+              )}
             </div>
-          </div>
-        )}
+          ))}
 
-        {/* Индикатор перевода */}
-        {isTranslating && (
-          <div style={{ alignSelf: "flex-start", animation: "slideIn 0.3s ease-out" }}>
-            <div style={{ background: "#f3e5f5", color: "#6a1b9a", padding: "12px 20px", borderRadius: "20px 20px 20px 0", fontSize: "16px", fontWeight: "500", animation: "pulse 1.5s infinite", boxShadow: "0 2px 8px rgba(106, 27, 154, 0.1)" }}>
-              Перевожу... 🧠
-            </div>
-          </div>
-        )}
-
-        {/* Блок подтверждения слова (отображается как сообщение бота) */}
-        {needsConfirmation && (
-          <div style={{ alignSelf: "flex-start", maxWidth: "85%", animation: "slideIn 0.3s ease-out" }}>
-            <div style={{ background: "#ffffff", padding: "15px", borderRadius: "20px 20px 20px 0", boxShadow: "0 4px 15px rgba(0,0,0,0.06)" }}>
-              <p style={{ margin: "0 0 15px 0", fontSize: "18px", color: "#333" }}>
-                Я услышала: <b>"{recognizedWord}"</b><br/>Все верно?
-              </p>
-              <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
-                <button onClick={() => analyzeWord(recognizedWord)} style={{ flex: 1, background: "#4CAF50", color: "white", padding: "10px", border: "none", borderRadius: "12px", cursor: "pointer", fontWeight: "500" }}>✅ Да</button>
-                <button onClick={() => setNeedsConfirmation(false)} style={{ flex: 1, background: "#f44336", color: "white", padding: "10px", border: "none", borderRadius: "12px", cursor: "pointer", fontWeight: "500" }}>🎤 Нет</button>
-                <button onClick={() => { setNeedsConfirmation(false); setIsSpellingMode(true); }} style={{ width: "100%", background: "#ff9800", color: "white", padding: "10px", border: "none", borderRadius: "12px", cursor: "pointer", fontWeight: "500", marginTop: "4px" }}>🔤 По буквам</button>
+          {isProcessing && (
+            <div style={{ alignSelf: "flex-start", animation: "slideIn 0.3s ease-out" }}>
+              <div style={{ background: "#fff3e0", color: "#e65100", padding: "12px 20px", borderRadius: "20px 20px 20px 0", fontSize: "16px", fontWeight: "500", animation: "pulse 1.5s infinite", boxShadow: "0 2px 8px rgba(230, 81, 0, 0.1)" }}>
+                Распознаю голос... 🎧
               </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {/* Невидимый элемент для авто-скролла */}
-        <div ref={messagesEndRef} style={{ height: "1px" }} />
+          {isTranslating && (
+            <div style={{ alignSelf: "flex-start", animation: "slideIn 0.3s ease-out" }}>
+              <div style={{ background: "#f3e5f5", color: "#6a1b9a", padding: "12px 20px", borderRadius: "20px 20px 20px 0", fontSize: "16px", fontWeight: "500", animation: "pulse 1.5s infinite", boxShadow: "0 2px 8px rgba(106, 27, 154, 0.1)" }}>
+                Перевожу... 🧠
+              </div>
+            </div>
+          )}
+
+          {needsConfirmation && (
+            <div style={{ alignSelf: "flex-start", maxWidth: "85%", animation: "slideIn 0.3s ease-out" }}>
+              <div style={{ background: "#ffffff", padding: "15px", borderRadius: "20px 20px 20px 0", boxShadow: "0 4px 15px rgba(0,0,0,0.06)" }}>
+                <p style={{ margin: "0 0 15px 0", fontSize: "18px", color: "#333" }}>
+                  Я услышала: <b>"{recognizedWord}"</b><br/>Все верно?
+                </p>
+                <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+                  <button onClick={() => analyzeWord(recognizedWord)} style={{ flex: 1, background: "#4CAF50", color: "white", padding: "10px", border: "none", borderRadius: "12px", cursor: "pointer", fontWeight: "500" }}>✅ Да</button>
+                  <button onClick={() => setNeedsConfirmation(false)} style={{ flex: 1, background: "#f44336", color: "white", padding: "10px", border: "none", borderRadius: "12px", cursor: "pointer", fontWeight: "500" }}>🎤 Нет</button>
+                  <button onClick={() => { setNeedsConfirmation(false); setIsSpellingMode(true); }} style={{ width: "100%", background: "#ff9800", color: "white", padding: "10px", border: "none", borderRadius: "12px", cursor: "pointer", fontWeight: "500", marginTop: "4px" }}>🔤 По буквам</button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div ref={messagesEndRef} style={{ height: "1px" }} />
+        </div>
+
+        {/* ПАНЕЛЬ ВВОДА */}
+        <div style={{ 
+          flex: "0 0 auto", 
+          padding: "15px 20px 25px 20px", 
+          background: "rgba(255, 255, 255, 0.9)", 
+          backdropFilter: "blur(10px)",
+          borderTop: "1px solid rgba(0,0,0,0.05)",
+          display: "flex",
+          gap: "10px",
+          alignItems: "center"
+        }}>
+          <input
+            value={word}
+            onChange={(e) => setWord(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder={isSpellingMode ? "Spelling mode (C-A-T)..." : "Напиши слово..."}
+            disabled={isProcessing || isTranslating}
+            style={{ 
+              fontFamily: "'Fredoka', sans-serif",
+              height: "55px", 
+              padding: "0 20px", 
+              fontSize: "18px", 
+              flex: "1", 
+              color: "#333",       
+              backgroundColor: "#f5f5f5", 
+              border: "1px solid transparent", 
+              borderRadius: "28px", 
+              transition: "all 0.3s ease",
+              boxSizing: "border-box"
+            }}
+          />
+
+          <button 
+            onClick={handleMainButtonClick} 
+            disabled={isProcessing || isTranslating}
+            style={{ 
+              height: "55px", 
+              width: "55px",  
+              flexShrink: 0,
+              cursor: (isProcessing || isTranslating) ? "not-allowed" : "pointer", 
+              background: word.trim() ? "#2196F3" : (isRecording ? "#f44336" : (isSpellingMode ? "#ffb74d" : "#ff4081")),
+              color: "white",
+              borderRadius: isRecording && !word.trim() ? "15px" : "50%", 
+              border: "none",
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+              fontSize: "24px",
+              boxShadow: word.trim() ? "0 4px 15px rgba(33, 150, 243, 0.3)" : "0 4px 15px rgba(255, 64, 129, 0.3)",
+              transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)", 
+              opacity: (isProcessing || isTranslating) ? 0.5 : 1,
+
+              WebkitUserSelect: "none",
+              userSelect: "none",
+              touchAction: "manipulation", 
+              WebkitTapHighlightColor: "transparent"
+            }}
+            title={word.trim() ? "Отправить" : "Нажмите, чтобы начать/остановить запись"}
+          >
+            {word.trim() ? "🚀" : (isRecording ? "🛑" : "🎤")}
+          </button>
+        </div>
       </div>
-
-      {/* ПАНЕЛЬ ВВОДА (Bottom Bar) */}
-      <div style={{ 
-        flex: "0 0 auto", 
-        padding: "15px 20px 25px 20px", // Увеличен нижний отступ для айфонов
-        background: "rgba(255, 255, 255, 0.95)", 
-        backdropFilter: "blur(10px)",
-        borderTop: "1px solid rgba(0,0,0,0.05)",
-        zIndex: 10,
-        display: "flex",
-        gap: "10px",
-        alignItems: "center"
-      }}>
-        <input
-          value={word}
-          onChange={(e) => setWord(e.target.value)}
-          onKeyDown={handleKeyDown}
-          placeholder={isSpellingMode ? "Spelling mode (C-A-T)..." : "Напиши слово..."}
-          disabled={isProcessing || isTranslating}
-          style={{ 
-            fontFamily: "'Fredoka', sans-serif",
-            height: "55px", // Строгая высота
-            padding: "0 20px", 
-            fontSize: "18px", 
-            flex: "1", 
-            color: "#333",       
-            backgroundColor: "#f5f5f5", 
-            border: "1px solid transparent", 
-            borderRadius: "28px", 
-            transition: "all 0.3s ease",
-            boxSizing: "border-box"
-          }}
-        />
-
-        <button 
-          onClick={handleMainButtonClick} 
-          disabled={isProcessing || isTranslating}
-          style={{ 
-            height: "55px", // Идентичная высота
-            width: "55px",  // Идеальный круг
-            flexShrink: 0,
-            cursor: (isProcessing || isTranslating) ? "not-allowed" : "pointer", 
-            
-            // Если введен текст - кнопка синяя (отправить). Если нет - розовая (микрофон) или красная (запись).
-            background: word.trim() ? "#2196F3" : (isRecording ? "#f44336" : (isSpellingMode ? "#ffb74d" : "#ff4081")),
-            
-            color: "white",
-            borderRadius: isRecording && !word.trim() ? "15px" : "50%", // Квадрат при записи
-            border: "none",
-            display: "flex",
-            justifyContent: "center",
-            alignItems: "center",
-            fontSize: "24px",
-            boxShadow: word.trim() ? "0 4px 15px rgba(33, 150, 243, 0.3)" : "0 4px 15px rgba(255, 64, 129, 0.3)",
-            transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)", 
-            opacity: (isProcessing || isTranslating) ? 0.5 : 1,
-
-            WebkitUserSelect: "none",
-            userSelect: "none",
-            touchAction: "manipulation", 
-            WebkitTapHighlightColor: "transparent"
-          }}
-          title={word.trim() ? "Отправить" : "Нажмите, чтобы начать/остановить запись"}
-        >
-          {word.trim() ? "🚀" : (isRecording ? "🛑" : "🎤")}
-        </button>
-      </div>
-
     </div>
   );
 }
