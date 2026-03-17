@@ -9,8 +9,10 @@ export default function App() {
   const [isRecording, setIsRecording] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isTranslating, setIsTranslating] = useState(false); 
-  const [isDrawing, setIsDrawing] = useState(false); 
-  const [isPlayingAudio, setIsPlayingAudio] = useState(false); 
+  
+  // ТЕПЕРЬ МЫ ХРАНИМ ID КОНКРЕТНОГО СООБЩЕНИЯ, А НЕ ОБЩИЙ СТАТУС
+  const [drawingMessageId, setDrawingMessageId] = useState(null); 
+  const [playingAudioId, setPlayingAudioId] = useState(null); 
 
   const [modalImage, setModalImage] = useState(null); 
 
@@ -22,11 +24,12 @@ export default function App() {
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [chatHistory, isProcessing, isTranslating, isDrawing]);
+  }, [chatHistory, isProcessing, isTranslating, drawingMessageId]);
 
-  const playAudio = async (text) => {
+  // ДОБАВИЛИ ПАРАМЕТР ID В ФУНКЦИЮ ОЗВУЧКИ
+  const playAudio = async (text, id) => {
     if (!text) return;
-    setIsPlayingAudio(true);
+    setPlayingAudioId(id); // Крутим часы ТОЛЬКО на этой кнопке
     
     try {
       const res = await fetch("https://vocab-app-m8ti.onrender.com/speak", {
@@ -42,7 +45,7 @@ export default function App() {
       const audio = new Audio(audioUrl);
       
       audio.onended = () => {
-        setIsPlayingAudio(false);
+        setPlayingAudioId(null); // Останавливаем часы
         URL.revokeObjectURL(audioUrl); 
       };
       
@@ -50,13 +53,13 @@ export default function App() {
     } catch (error) {
       console.error("Play audio error:", error);
       alert("Не удалось загрузить озвучку 😔");
-      setIsPlayingAudio(false);
+      setPlayingAudioId(null);
     }
   };
 
   const handleGenerateImage = async (wordToDraw, messageId) => {
     if (!wordToDraw) return;
-    setIsDrawing(true);
+    setDrawingMessageId(messageId); // Крутим часы ТОЛЬКО на этой кнопке
 
     try {
       const res = await fetch("https://vocab-app-m8ti.onrender.com/generate-image", {
@@ -80,7 +83,7 @@ export default function App() {
       console.error("Image error:", error);
       alert("Ошибка сервера. Не удалось загрузить картинку.");
     } finally {
-      setIsDrawing(false);
+      setDrawingMessageId(null); // Останавливаем часы
     }
   };
 
@@ -158,20 +161,18 @@ export default function App() {
   };
 
   return (
-    // ДОБАВЛЕНО: position: 'fixed', top: 0, left: 0 для полной фиксации экрана
     <div style={{ height: "100dvh", width: "100vw", position: "fixed", top: 0, left: 0, backgroundColor: "#fff5f8", fontFamily: "'Fredoka', sans-serif", overflow: "hidden" }}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600&display=swap');
         
-        /* ЖЕСТКАЯ БЛОКИРОВКА СКРОЛЛА ДЛЯ BODY И HTML */
         body, html { 
           margin: 0; 
           padding: 0; 
           width: 100%; 
           height: 100%; 
           overflow: hidden; 
-          overscroll-behavior: none; /* Убиваем эффект резинки на iOS */
-          touch-action: none; /* Запрещаем свайпы по экрану вне чата */
+          overscroll-behavior: none; 
+          touch-action: none; 
           -webkit-user-select: none;
           user-select: none;
         }
@@ -183,15 +184,14 @@ export default function App() {
         
         input:focus { outline: none; }
         
-        /* НАСТРОЙКИ СКРОЛЛА ИСКЛЮЧИТЕЛЬНО ДЛЯ ЧАТА */
         .chat-container::-webkit-scrollbar { display: none; }
         .chat-container { 
           -ms-overflow-style: none; 
           scrollbar-width: none; 
           overflow-y: auto; 
-          -webkit-overflow-scrolling: touch; /* Плавный инерционный скролл iOS */
-          overscroll-behavior-y: contain; /* Не дает скроллу выйти за пределы чата */
-          touch-action: pan-y; /* Разрешаем только свайпы вверх-вниз */
+          -webkit-overflow-scrolling: touch; 
+          overscroll-behavior-y: contain; 
+          touch-action: pan-y; 
         }
         
         .action-button {
@@ -242,20 +242,20 @@ export default function App() {
                   <div style={{ position: 'absolute', top: '15px', right: '15px', display: 'flex', gap: '8px' }}>
                     <button 
                       className="action-button" 
-                      onClick={() => playAudio(msg.result.word)}
-                      disabled={isPlayingAudio}
+                      onClick={() => playAudio(msg.result.word, msg.id)}
+                      disabled={playingAudioId === msg.id}
                       style={{ background: '#e3f2fd', color: '#1976d2' }}
                       title="Послушать">
-                      {isPlayingAudio ? <span style={{ animation: "spin 1s linear infinite", display: "inline-block" }}>⏳</span> : "🔊"}
+                      {playingAudioId === msg.id ? <span style={{ animation: "spin 1s linear infinite", display: "inline-block" }}>⏳</span> : "🔊"}
                     </button>
 
                     <button 
                       className="action-button" 
-                      onClick={() => msg.result.generatedImageUrl ? setModalImage(msg.result.generatedImageUrl) : handleGenerateImage(msg.result.word, msg.id)}
-                      disabled={isDrawing || msg.result.transcription === "no-no"} 
+                      onClick={() => msg.result.generatedImageUrl ? setModalImage(msg.result.generatedImageUrl) : handleGenerateImage(msg.result.gif_query || msg.result.word, msg.id)}
+                      disabled={!!drawingMessageId || msg.result.transcription === "no-no"} 
                       style={{ background: msg.result.generatedImageUrl ? '#e8f5e9' : '#fce4ec', color: msg.result.generatedImageUrl ? '#388e3c' : '#d81b60' }}
-                      title={msg.result.generatedImageUrl ? "Показать картинку" : "Нарисовать картинку"}>
-                      {msg.result.generatedImageUrl ? '🖼️' : '🎨'}
+                      title={msg.result.generatedImageUrl ? "Показать картинку" : "Найти картинку"}>
+                      {drawingMessageId === msg.id ? <span style={{ animation: "spin 1s linear infinite", display: "inline-block" }}>⏳</span> : (msg.result.generatedImageUrl ? '🖼️' : '🎨')}
                     </button>
                   </div>
 
@@ -282,15 +282,14 @@ export default function App() {
 
           {isProcessing && <div style={{ alignSelf: "flex-start" }}><div style={{ background: "#fff3e0", color: "#e65100", padding: "10px 20px", borderRadius: "15px", animation: "pulse 1.5s infinite" }}>Распознаю... 🎧</div></div>}
           {isTranslating && <div style={{ alignSelf: "flex-start" }}><div style={{ background: "#f3e5f5", color: "#6a1b9a", padding: "10px 20px", borderRadius: "15px", animation: "pulse 1.5s infinite" }}>Перевожу... 🧠</div></div>}
-          {isDrawing && <div style={{ alignSelf: "flex-start" }}><div style={{ background: "#e8f5e9", color: "#1b5e20", padding: "10px 20px", borderRadius: "15px", animation: "pulse 1.5s infinite" }}>Ищу картинку... 🎨</div></div>}
 
           <div ref={messagesEndRef} style={{ height: "1px" }} />
         </div>
 
         <div style={{ flex: "0 0 auto", padding: "15px 20px 25px 20px", background: "rgba(255, 255, 255, 0.9)", backdropFilter: "blur(10px)", borderTop: "1px solid rgba(0,0,0,0.05)", display: "flex", gap: "10px", alignItems: "center" }}>
-          <input value={word} onChange={(e) => setWord(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleMainButtonClick()} placeholder="Напиши слово или фразу..." disabled={isProcessing || isTranslating || isDrawing} style={{ fontFamily: "'Fredoka', sans-serif", height: "55px", padding: "0 20px", fontSize: "18px", flex: "1", color: "#333", backgroundColor: "#f5f5f5", border: "1px solid transparent", borderRadius: "28px", boxSizing: "border-box" }} />
+          <input value={word} onChange={(e) => setWord(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleMainButtonClick()} placeholder="Напиши слово или фразу..." disabled={isProcessing || isTranslating || !!drawingMessageId} style={{ fontFamily: "'Fredoka', sans-serif", height: "55px", padding: "0 20px", fontSize: "18px", flex: "1", color: "#333", backgroundColor: "#f5f5f5", border: "1px solid transparent", borderRadius: "28px", boxSizing: "border-box" }} />
           
-          <button onClick={handleMainButtonClick} disabled={isProcessing || isTranslating || isDrawing} style={{ height: "55px", width: "55px", flexShrink: 0, cursor: "pointer", background: word.trim() ? "#2196F3" : (isRecording ? "#f44336" : "#ff4081"), color: "white", borderRadius: isRecording && !word.trim() ? "15px" : "50%", border: "none", fontSize: "24px", boxShadow: "0 4px 15px rgba(0,0,0,0.1)", transition: "all 0.3s ease", display: "flex", alignItems: "center", justifyContent: "center", padding: 0, margin: 0, lineHeight: 1, boxSizing: "border-box" }}>
+          <button onClick={handleMainButtonClick} disabled={isProcessing || isTranslating || !!drawingMessageId} style={{ height: "55px", width: "55px", flexShrink: 0, cursor: "pointer", background: word.trim() ? "#2196F3" : (isRecording ? "#f44336" : "#ff4081"), color: "white", borderRadius: isRecording && !word.trim() ? "15px" : "50%", border: "none", fontSize: "24px", boxShadow: "0 4px 15px rgba(0,0,0,0.1)", transition: "all 0.3s ease", display: "flex", alignItems: "center", justifyContent: "center", padding: 0, margin: 0, lineHeight: 1, boxSizing: "border-box" }}>
             {word.trim() ? "🚀" : (isRecording ? "🛑" : "🎤")}
           </button>
         </div>
