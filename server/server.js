@@ -27,8 +27,8 @@ app.post("/analyze", async (req, res) => {
           content: `
 You are a vocabulary teacher for kids. User input is a word, a short phrase, or a full sentence.
 
-CRITICAL SAFETY RULE: If the input contains profanity, adult content (e.g., "секс", "порно"), violence, insults, or any inappropriate words for children in any language, you MUST reject it. 
-If rejected, respond EXACTLY with this JSON and nothing else:
+CRITICAL SAFETY RULE: If the input contains profanity, adult content, violence, insults, or inappropriate words, you MUST reject it.
+If rejected, respond EXACTLY with this JSON:
 {
   "word": "Oops! 🙈",
   "transcription": "no-no",
@@ -36,11 +36,11 @@ If rejected, respond EXACTLY with this JSON and nothing else:
   "examples": ["Let's learn something else!", "Давай выучим другое слово!"]
 }
 
-If the word is safe:
-Detect language (RU/EN). ALWAYS provide target ENGLISH text. 
-IMPORTANT: If the user inputs a full phrase or sentence, translate the ENTIRE phrase/sentence. Do not extract just one word. The "word" field MUST contain the complete translation.
-Provide its phonetic transcription (without brackets, e.g., 'kæt'), Russian translation of the whole text, and 2 simple English example sentences.
-Respond ONLY in JSON format.
+CRITICAL TRANSLATION RULE:
+- The "word" field MUST ALWAYS BE IN ENGLISH. If the user speaks English, keep it exactly as they said it. If Russian, translate the ENTIRE phrase to English.
+- The "translation" field MUST ALWAYS BE IN RUSSIAN. If the user speaks Russian, keep it exactly as they said it. If English, translate the ENTIRE phrase to Russian.
+- Provide transcription (without brackets) for the English text, and 2 simple English example sentences.
+Respond ONLY in JSON.
 `
         },
         { role: "user", content: word }
@@ -56,26 +56,31 @@ Respond ONLY in JSON format.
   }
 })
 
+// --- ОБНОВЛЕННЫЙ МАРШРУТ: ТЕПЕРЬ ИЩЕТ ГИФКИ ВМЕСТО DALL-E ---
 app.post("/generate-image", async (req, res) => {
   const { word } = req.body
   if (!word) return res.status(400).json({ error: "No word provided" });
 
   try {
-    const response = await openai.images.generate({
-      model: "dall-e-2", 
-      // Новый промпт: читаемый смысл + стиль Смешариков (круглые персонажи, яркие цвета)
-      prompt: `A clear, educational cartoon illustration for a child to easily guess the meaning of: "${word}". The style should feature cute, perfectly round, chubby animal characters with big expressive eyes, bright vibrant colors, and simple scenic backgrounds (resembling the aesthetic of spherical cartoon animals), original and non-copyrighted.`,
-      n: 1,
-      size: "256x256", 
-      response_format: "url"
-    });
+    const giphyApiKey = process.env.GIPHY_API_KEY;
+    if (!giphyApiKey) {
+      return res.status(500).json({ error: "GIPHY API key is missing on the server" });
+    }
 
-    const imageUrl = response.data[0].url;
-    res.json({ imageUrl }); 
+    // Идем в GIPHY: ищем английское слово, берем 1 результат, строго детский рейтинг (rating=g)
+    const response = await fetch(`https://api.giphy.com/v1/gifs/search?api_key=${giphyApiKey}&q=${encodeURIComponent(word)}&limit=1&rating=g&lang=en`);
+    const data = await response.json();
 
+    if (data.data && data.data.length > 0) {
+      // Берем оптимизированную по размеру гифку, чтобы телефон не тормозил
+      const imageUrl = data.data[0].images.downsized.url; 
+      res.json({ imageUrl }); 
+    } else {
+      res.status(404).json({ error: "No GIF found for this word" });
+    }
   } catch (error) {
-    console.error("DALL-E error:", error);
-    res.status(500).json({ error: "Image generation failed" });
+    console.error("GIPHY error:", error);
+    res.status(500).json({ error: "GIF fetch failed" });
   }
 });
 
@@ -89,7 +94,6 @@ app.post("/speak", async (req, res) => {
       voice: "nova", 
       input: text,
     });
-    
     const buffer = Buffer.from(await mp3.arrayBuffer());
     res.set({'Content-Type': 'audio/mpeg'});
     res.send(buffer);
