@@ -170,19 +170,23 @@ export default function App() {
         .chat-container::-webkit-scrollbar { display: none; }
         .chat-container { -ms-overflow-style: none; scrollbar-width: none; }
         
-        /* ИСПРАВЛЕННЫЕ СТИЛИ КНОПОК */
+        /* Жесткая центровка для круглых кнопок */
         .action-button {
           border: none;
           border-radius: 50%;
-          width: 34px; /* Меньше размер */
+          width: 34px; 
           height: 34px; 
           display: flex;
-          align-items: center; /* Исправлено для CSS */
-          justify-content: center; /* Исправлено для CSS */
+          align-items: center; 
+          justify-content: center; 
           cursor: pointer;
           transition: all 0.2s ease;
           box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-          font-size: 16px; /* Меньше иконка */
+          font-size: 16px; 
+          padding: 0;
+          margin: 0;
+          line-height: 1;
+          box-sizing: border-box;
         }
         .action-button:hover:not(:disabled) { transform: scale(1.05); }
         .action-button:active:not(:disabled) { transform: scale(0.95); }
@@ -210,10 +214,8 @@ export default function App() {
                   {msg.text}
                 </div>
               ) : msg.type === "result" ? (
-                // ОТСТУП СПРАВА УВЕЛИЧЕН (paddingRight: "85px"), ЧТОБЫ ТЕКСТ НЕ НАЕЗЖАЛ НА КНОПКИ
                 <div style={{ background: "#ffffff", padding: "20px", paddingRight: "85px", borderRadius: "20px 20px 20px 0", color: "#333", boxShadow: "0 4px 15px rgba(0,0,0,0.06)", minWidth: "250px", position: "relative" }}>
                   
-                  {/* КНОПКИ В ПРАВОМ ВЕРХНЕМ УГЛУ */}
                   <div style={{ position: 'absolute', top: '15px', right: '15px', display: 'flex', gap: '8px' }}>
                     <button 
                       className="action-button" 
@@ -264,20 +266,21 @@ export default function App() {
 
         <div style={{ flex: "0 0 auto", padding: "15px 20px 25px 20px", background: "rgba(255, 255, 255, 0.9)", backdropFilter: "blur(10px)", borderTop: "1px solid rgba(0,0,0,0.05)", display: "flex", gap: "10px", alignItems: "center" }}>
           <input value={word} onChange={(e) => setWord(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleMainButtonClick()} placeholder="Напиши слово или фразу..." disabled={isProcessing || isTranslating || isDrawing} style={{ fontFamily: "'Fredoka', sans-serif", height: "55px", padding: "0 20px", fontSize: "18px", flex: "1", color: "#333", backgroundColor: "#f5f5f5", border: "1px solid transparent", borderRadius: "28px", boxSizing: "border-box" }} />
-          <button onClick={handleMainButtonClick} disabled={isProcessing || isTranslating || isDrawing} style={{ height: "55px", width: "55px", flexShrink: 0, cursor: "pointer", background: word.trim() ? "#2196F3" : (isRecording ? "#f44336" : "#ff4081"), color: "white", borderRadius: isRecording && !word.trim() ? "15px" : "50%", border: "none", fontSize: "24px", boxShadow: "0 4px 15px rgba(0,0,0,0.1)", transition: "all 0.3s ease" }}>
+          
+          {/* ИСПРАВЛЕННАЯ КНОПКА МИКРОФОНА */}
+          <button onClick={handleMainButtonClick} disabled={isProcessing || isTranslating || isDrawing} style={{ height: "55px", width: "55px", flexShrink: 0, cursor: "pointer", background: word.trim() ? "#2196F3" : (isRecording ? "#f44336" : "#ff4081"), color: "white", borderRadius: isRecording && !word.trim() ? "15px" : "50%", border: "none", fontSize: "24px", boxShadow: "0 4px 15px rgba(0,0,0,0.1)", transition: "all 0.3s ease", display: "flex", alignItems: "center", justifyContent: "center", padding: 0, margin: 0, lineHeight: 1, boxSizing: "border-box" }}>
             {word.trim() ? "🚀" : (isRecording ? "🛑" : "🎤")}
           </button>
         </div>
       </div>
 
-      {/* НОВОЕ КОМПАКТНОЕ МОДАЛЬНОЕ ОКНО */}
       {modalImage && (
         <div onClick={() => setModalImage(null)} style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000, animation: 'fadeIn 0.3s ease' }}>
           <div onClick={(e) => e.stopPropagation()} style={{ position: 'relative', background: 'white', padding: '15px', borderRadius: '25px', boxShadow: '0 10px 30px rgba(0,0,0,0.15)', maxWidth: '280px', width: '90%', display: 'flex', flexDirection: 'column' }}>
-            {/* Картинка не растягивается (objectFit: 'contain') и ограничена по высоте */}
             <img src={modalImage} alt="Generated cartoon" style={{ width: '100%', height: 'auto', maxHeight: '300px', objectFit: 'contain', borderRadius: '15px', display: 'block' }} />
             
-            <button onClick={() => setModalImage(null)} style={{ position: 'absolute', top: '-10px', right: '-10px', width: '32px', height: '32px', borderRadius: '50%', background: '#f44336', color: 'white', border: '3px solid white', fontSize: '16px', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 5px rgba(0,0,0,0.2)' }}>✕</button>
+            {/* ИСПРАВЛЕННЫЙ КРЕСТИК */}
+            <button onClick={() => setModalImage(null)} style={{ position: 'absolute', top: '-10px', right: '-10px', width: '32px', height: '32px', borderRadius: '50%', background: '#f44336', color: 'white', border: '3px solid white', fontSize: '16px', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 5px rgba(0,0,0,0.2)', padding: 0, margin: 0, lineHeight: 1, flexShrink: 0, boxSizing: "border-box" }}>✕</button>
           </div>
         </div>
       )}
