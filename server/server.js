@@ -56,30 +56,35 @@ Respond ONLY in JSON.
   }
 })
 
-// --- ОБНОВЛЕННЫЙ МАРШРУТ: ТЕПЕРЬ ИЩЕТ ГИФКИ ВМЕСТО DALL-E ---
+// --- ИСПОЛЬЗУЕМ KLIPY API ---
 app.post("/generate-image", async (req, res) => {
   const { word } = req.body
   if (!word) return res.status(400).json({ error: "No word provided" });
 
   try {
-    const giphyApiKey = process.env.GIPHY_API_KEY;
-    if (!giphyApiKey) {
-      return res.status(500).json({ error: "GIPHY API key is missing on the server" });
+    const klipyApiKey = process.env.KLIPY_API_KEY;
+    if (!klipyApiKey) {
+      return res.status(500).json({ error: "KLiPy API key is missing on the server" });
     }
 
-    // Идем в GIPHY: ищем английское слово, берем 1 результат, строго детский рейтинг (rating=g)
-    const response = await fetch(`https://api.giphy.com/v1/gifs/search?api_key=${giphyApiKey}&q=${encodeURIComponent(word)}&limit=1&rating=g&lang=en`);
+    // Идем в KLiPy за гифкой
+    const response = await fetch(`https://api.klipy.co/v1/gifs/search?q=${encodeURIComponent(word)}&apikey=${klipyApiKey}&limit=1`);
     const data = await response.json();
 
+    let imageUrl = null;
     if (data.data && data.data.length > 0) {
-      // Берем оптимизированную по размеру гифку, чтобы телефон не тормозил
-      const imageUrl = data.data[0].images.downsized.url; 
+      const item = data.data[0];
+      // Пытаемся безопасно извлечь URL (KLiPy отдает данные, похожие на GIPHY)
+      imageUrl = item.images?.downsized?.url || item.images?.original?.url || item.url;
+    }
+
+    if (imageUrl) {
       res.json({ imageUrl }); 
     } else {
       res.status(404).json({ error: "No GIF found for this word" });
     }
   } catch (error) {
-    console.error("GIPHY error:", error);
+    console.error("KLiPy error:", error);
     res.status(500).json({ error: "GIF fetch failed" });
   }
 });
