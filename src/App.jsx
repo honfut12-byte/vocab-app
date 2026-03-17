@@ -2,42 +2,95 @@ import { useState, useRef, useEffect } from "react";
 
 export default function App() {
   const [word, setWord] = useState("");
-  
   const [chatHistory, setChatHistory] = useState([
-    { 
-      id: 1, 
-      sender: "bot", 
-      type: "welcome", 
-      text: "Привет! Я LizAlis 🎀 Скажи или напиши мне любое слово, и я его переведу!" 
-    }
+    { id: 1, sender: "bot", type: "welcome", text: "Привет! Я LizAlis 🎀 Напиши или скажи мне слово, и я его переведу!" }
   ]);
 
   const [isRecording, setIsRecording] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isTranslating, setIsTranslating] = useState(false); 
-  
-  const [recognizedWord, setRecognizedWord] = useState("");
-  const [needsConfirmation, setNeedsConfirmation] = useState(false);
-  const [isSpellingMode, setIsSpellingMode] = useState(false);
+  const [isDrawing, setIsDrawing] = useState(false); 
+  const [isPlayingAudio, setIsPlayingAudio] = useState(false); 
+
+  const [modalImage, setModalImage] = useState(null); 
 
   const mediaRecorderRef = useRef(null);
   const audioChunksRef = useRef([]);
   const recordingTimerRef = useRef(null);
   const streamRef = useRef(null); 
-  
   const messagesEndRef = useRef(null);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [chatHistory, isProcessing, isTranslating, needsConfirmation]);
+  }, [chatHistory, isProcessing, isTranslating, isDrawing]);
+
+  // --- ОЗВУЧКА ЧЕРЕЗ OPENAI ---
+  const playAudio = async (text) => {
+    if (!text) return;
+    setIsPlayingAudio(true);
+    
+    try {
+      const res = await fetch("https://vocab-app-m8ti.onrender.com/speak", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text }),
+      });
+
+      if (!res.ok) throw new Error("Audio fetch failed");
+
+      const audioBlob = await res.blob();
+      const audioUrl = URL.createObjectURL(audioBlob);
+      const audio = new Audio(audioUrl);
+      
+      audio.onended = () => {
+        setIsPlayingAudio(false);
+        URL.revokeObjectURL(audioUrl); 
+      };
+      
+      await audio.play();
+    } catch (error) {
+      console.error("Play audio error:", error);
+      alert("Не удалось загрузить озвучку 😔");
+      setIsPlayingAudio(false);
+    }
+  };
+
+  // --- ГЕНЕРАЦИЯ КАРТИНКИ ---
+  const handleGenerateImage = async (wordToDraw, messageId) => {
+    if (!wordToDraw) return;
+    setIsDrawing(true);
+
+    try {
+      const res = await fetch("https://vocab-app-m8ti.onrender.com/generate-image", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ word: wordToDraw }),
+      });
+      const data = await res.json();
+      
+      if (data.imageUrl) {
+        setChatHistory(prev => prev.map(msg => 
+          msg.id === messageId 
+            ? { ...msg, result: { ...msg.result, generatedImageUrl: data.imageUrl } }
+            : msg
+        ));
+        setModalImage(data.imageUrl);
+      } else {
+        alert("Не удалось нарисовать картинку 😔 Попробуй другое слово.");
+      }
+    } catch (error) {
+      console.error("Image error:", error);
+      alert("Ошибка сервера. Не удалось нарисовать.");
+    } finally {
+      setIsDrawing(false);
+    }
+  };
 
   const analyzeWord = async (textToTranslate) => {
     const target = typeof textToTranslate === "string" ? textToTranslate : word;
     if (!target.trim()) return;
-    
     setChatHistory(prev => [...prev, { id: Date.now(), sender: "user", text: target }]);
     setWord(""); 
-    setNeedsConfirmation(false);
     
     setIsTranslating(true); 
     try {
@@ -47,11 +100,10 @@ export default function App() {
         body: JSON.stringify({ word: target }),
       });
       const data = await res.json();
-      
       setChatHistory(prev => [...prev, { id: Date.now() + 1, sender: "bot", type: "result", result: data }]);
     } catch (error) {
-      console.error("Ошибка при переводе:", error);
-      setChatHistory(prev => [...prev, { id: Date.now() + 1, sender: "bot", type: "error", text: "Ой, что-то пошло не так. Попробуй еще раз! 🥺" }]);
+      console.error(error);
+      setChatHistory(prev => [...prev, { id: Date.now() + 1, sender: "bot", type: "error", text: "Ой, ошибка сети 🥺" }]);
     } finally {
       setIsTranslating(false); 
     }
@@ -62,73 +114,30 @@ export default function App() {
       streamRef.current.getTracks().forEach(track => track.stop());
       streamRef.current = null;
     }
-
     try {
       streamRef.current = await navigator.mediaDevices.getUserMedia({ audio: true });
-      
       mediaRecorderRef.current = new MediaRecorder(streamRef.current);
       audioChunksRef.current = [];
-
       mediaRecorderRef.current.ondataavailable = (event) => {
         if (event.data.size > 0) audioChunksRef.current.push(event.data);
       };
-
       mediaRecorderRef.current.onstop = async () => {
-        const mimeType = mediaRecorderRef.current.mimeType || "audio/webm";
-        const audioBlob = new Blob(audioChunksRef.current, { type: mimeType });
+        const audioBlob = new Blob(audioChunksRef.current, { type: "audio/webm" });
         await sendAudioToBackend(audioBlob);
       };
-
       mediaRecorderRef.current.start();
       setIsRecording(true);
-
-      recordingTimerRef.current = setTimeout(() => {
-        if (mediaRecorderRef.current && mediaRecorderRef.current.state === "recording") {
-          stopRecording();
-        }
-      }, 30000);
-
-    } catch (error) {
-      console.error("Ошибка доступа к микрофону:", error);
-      alert("Пожалуйста, разрешите доступ к микрофону в браузере.");
-    }
+      recordingTimerRef.current = setTimeout(() => stopRecording(), 30000);
+    } catch (error) { console.error(error); alert("Доступ к микрофону запрещен."); }
   };
 
   const stopRecording = () => {
     setIsRecording(false); 
-
-    if (recordingTimerRef.current) {
-      clearTimeout(recordingTimerRef.current);
-    }
-    
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state === "recording") {
-      mediaRecorderRef.current.stop();
-    }
-
+    if (recordingTimerRef.current) clearTimeout(recordingTimerRef.current);
+    if (mediaRecorderRef.current?.state === "recording") mediaRecorderRef.current.stop();
     if (streamRef.current) {
       streamRef.current.getTracks().forEach(track => track.stop());
       streamRef.current = null;
-    }
-  };
-
-  const handleMainButtonClick = async (e) => {
-    if (e) e.preventDefault();
-    
-    if (word.trim()) {
-      analyzeWord(word);
-      return;
-    }
-
-    if (isRecording) {
-      stopRecording();
-    } else {
-      await startRecording();
-    }
-  };
-
-  const handleKeyDown = (e) => {
-    if (e.key === 'Enter' && word.trim() && !isProcessing && !isTranslating) {
-      analyzeWord(word);
     }
   };
 
@@ -136,275 +145,137 @@ export default function App() {
     setIsProcessing(true); 
     const formData = new FormData();
     formData.append("audio", audioBlob, "voice_record");
-    formData.append("mode", isSpellingMode ? "spell" : "normal");
-
     try {
-      const res = await fetch("https://vocab-app-m8ti.onrender.com/transcribe", {
-        method: "POST",
-        body: formData,
-      });
+      const res = await fetch("https://vocab-app-m8ti.onrender.com/transcribe", { method: "POST", body: formData });
       const data = await res.json();
-      
-      if (data.text) {
-        setRecognizedWord(data.text);
-        setNeedsConfirmation(true);
-      } else {
-        alert("Не удалось распознать звук. Попробуйте сказать громче.");
-      }
-      setIsSpellingMode(false);
-    } catch (error) {
-      console.error("Ошибка распознавания:", error);
-      alert("Не удалось распознать голос. Проверьте соединение с сервером.");
-      setIsSpellingMode(false);
-    } finally {
-      setIsProcessing(false); 
-    }
+      if (data.text) analyzeWord(data.text);
+    } catch (error) { console.error(error); alert("Ошибка распознавания.");
+    } finally { setIsProcessing(false); }
+  };
+
+  const handleMainButtonClick = (e) => {
+    if (e) e.preventDefault();
+    if (word.trim()) { analyzeWord(word); return; }
+    if (isRecording) stopRecording(); else startRecording();
   };
 
   return (
-    <div style={{ 
-      height: "100dvh", 
-      width: "100vw", // Занимаем весь экран
-      backgroundColor: "#fff5f8", 
-      fontFamily: "'Fredoka', sans-serif",
-      position: "relative",
-      overflow: "hidden"
-    }}>
+    <div style={{ height: "100dvh", width: "100vw", backgroundColor: "#fff5f8", fontFamily: "'Fredoka', sans-serif", position: "relative", overflow: "hidden" }}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600&display=swap');
-        
-        body, html { margin: 0; padding: 0; width: 100%; height: 100%; }
-        
-        @keyframes pulse {
-          0% { opacity: 0.7; transform: scale(0.98); }
-          50% { opacity: 1; transform: scale(1.02); }
-          100% { opacity: 0.7; transform: scale(0.98); }
-        }
-
-        @keyframes slideIn {
-          from { opacity: 0; transform: translateY(10px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-
+        body, html { margin: 0; padding: 0; }
+        @keyframes pulse { 0% { opacity: 0.7; } 50% { opacity: 1; } 100% { opacity: 0.7; } }
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+        @keyframes slideIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
         input:focus { outline: none; }
-        
         .chat-container::-webkit-scrollbar { display: none; }
         .chat-container { -ms-overflow-style: none; scrollbar-width: none; }
+        
+        .action-button {
+          border: none;
+          border-radius: 50%;
+          width: 45px;
+          height: 45px;
+          display: flex;
+          alignItems: center;
+          justifyContent: center;
+          cursor: pointer;
+          transition: all 0.2s ease;
+          box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+          font-size: 20px;
+        }
+        .action-button:hover:not(:disabled) { transform: scale(1.05); }
+        .action-button:active:not(:disabled) { transform: scale(0.95); }
+        .action-button:disabled { opacity: 0.6; cursor: wait; }
       `}</style>
 
-      {/* ФОН С ИГРУШКАМИ - он остается на весь экран */}
-      <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 0, overflow: 'hidden', opacity: 0.12, fontSize: '4rem', userSelect: 'none' }}>
+      <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 0, overflow: 'hidden', opacity: 0.1, fontSize: '4rem', userSelect: 'none' }}>
         <span style={{ position: 'absolute', top: '5%', left: '8%', transform: 'rotate(-15deg)' }}>🧸</span>
         <span style={{ position: 'absolute', top: '15%', right: '12%', transform: 'rotate(20deg)' }}>🎈</span>
-        <span style={{ position: 'absolute', top: '45%', left: '4%', transform: 'rotate(10deg)' }}>🦄</span>
-        <span style={{ position: 'absolute', top: '65%', right: '8%', transform: 'rotate(-20deg)' }}>🚗</span>
-        <span style={{ position: 'absolute', bottom: '8%', left: '15%', transform: 'rotate(15deg)' }}>🎀</span>
-        <span style={{ position: 'absolute', top: '35%', right: '25%', transform: 'rotate(-10deg)' }}>🌟</span>
         <span style={{ position: 'absolute', bottom: '25%', right: '5%', transform: 'rotate(5deg)' }}>🍭</span>
       </div>
 
-      {/* ЦЕНТРАЛЬНЫЙ КОНТЕЙНЕР-МЕССЕНДЖЕР (Адаптация для планшетов) */}
-      <div style={{
-        maxWidth: "700px", // Максимальная ширина для планшетов/ПК
-        margin: "0 auto",  // Центрирование
-        height: "100%",
-        display: "flex", 
-        flexDirection: "column",
-        position: "relative",
-        zIndex: 1,
-        backgroundColor: "rgba(255, 255, 255, 0.4)", // Едва заметная подложка
-        boxShadow: "0 0 30px rgba(0,0,0,0.03)" // Мягкая тень по бокам на больших экранах
-      }}>
+      <div style={{ maxWidth: "700px", margin: "0 auto", height: "100%", display: "flex", flexDirection: "column", position: "relative", zIndex: 1, backgroundColor: "rgba(255, 255, 255, 0.4)" }}>
         
-        {/* ШАПКА ЧАТА */}
-        <div style={{ 
-          flex: "0 0 auto", 
-          padding: "15px 20px", 
-          background: "rgba(255, 255, 255, 0.85)", 
-          backdropFilter: "blur(10px)",
-          borderBottom: "1px solid rgba(255, 117, 140, 0.2)",
-          textAlign: "center"
-        }}>
-          <h1 style={{ 
-            margin: 0, 
-            fontSize: "2.2rem", 
-            fontWeight: "600",
-            background: "linear-gradient(45deg, #ff758c 0%, #ff7eb3 100%)",
-            WebkitBackgroundClip: "text",
-            WebkitTextFillColor: "transparent",
-            textShadow: "2px 2px 10px rgba(255, 117, 140, 0.1)"
-          }}>LizAlis</h1>
+        <div style={{ flex: "0 0 auto", padding: "15px 20px", background: "rgba(255, 255, 255, 0.85)", backdropFilter: "blur(10px)", borderBottom: "1px solid rgba(255, 117, 140, 0.2)", textAlign: "center" }}>
+          <h1 style={{ margin: 0, fontSize: "2.2rem", fontWeight: "600", background: "linear-gradient(45deg, #ff758c 0%, #ff7eb3 100%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>LizAlis</h1>
         </div>
 
-        {/* ОБЛАСТЬ СООБЩЕНИЙ */}
-        <div className="chat-container" style={{ 
-          flex: "1 1 auto", 
-          overflowY: "auto", 
-          padding: "20px", 
-          display: "flex",
-          flexDirection: "column",
-          gap: "15px"
-        }}>
+        <div className="chat-container" style={{ flex: "1 1 auto", overflowY: "auto", padding: "20px", display: "flex", flexDirection: "column", gap: "15px" }}>
           
           {chatHistory.map((msg) => (
-            <div key={msg.id} style={{
-              alignSelf: msg.sender === "user" ? "flex-end" : "flex-start",
-              maxWidth: "85%",
-              animation: "slideIn 0.3s ease-out"
-            }}>
+            <div key={msg.id} style={{ alignSelf: msg.sender === "user" ? "flex-end" : "flex-start", maxWidth: "85%", animation: "slideIn 0.3s ease-out", position: 'relative' }}>
               {msg.sender === "user" ? (
-                <div style={{
-                  background: "linear-gradient(135deg, #ff9a9e 0%, #fecfef 99%, #fecfef 100%)",
-                  color: "#d81b60",
-                  padding: "12px 20px",
-                  borderRadius: "20px 20px 0 20px",
-                  fontSize: "18px",
-                  fontWeight: "500",
-                  boxShadow: "0 2px 8px rgba(255, 154, 158, 0.3)"
-                }}>
+                <div style={{ background: "linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%)", color: "#d81b60", padding: "12px 20px", borderRadius: "20px 20px 0 20px", fontSize: "18px", fontWeight: "500", boxShadow: "0 2px 8px rgba(255, 154, 158, 0.3)" }}>
                   {msg.text}
                 </div>
-              ) : (
-                msg.type === "welcome" || msg.type === "error" ? (
-                  <div style={{
-                    background: "#ffffff",
-                    color: "#333",
-                    padding: "12px 20px",
-                    borderRadius: "20px 20px 20px 0",
-                    fontSize: "18px",
-                    boxShadow: "0 2px 8px rgba(0,0,0,0.05)"
-                  }}>
-                    {msg.text}
+              ) : msg.type === "result" ? (
+                <div style={{ background: "#ffffff", padding: "20px", borderRadius: "20px 20px 20px 0", color: "#333", boxShadow: "0 4px 15px rgba(0,0,0,0.06)", minWidth: "250px", paddingBottom: '70px' }}>
+                  <h2 style={{ margin: "0 0 5px 0", fontSize: "26px", color: "#333", fontWeight: "600" }}>{msg.result.word}</h2>
+                  <p style={{ margin: "0 0 15px 0", fontSize: "16px", color: "#888", fontStyle: "italic" }}>/{msg.result.transcription}/</p>
+                  <div style={{ background: "#fff0f5", padding: "12px 15px", borderRadius: "12px", marginBottom: "15px" }}>
+                    <p style={{ margin: 0, fontSize: "20px", fontWeight: "600", color: "#d81b60" }}>{msg.result.translation}</p>
                   </div>
-                ) : (
-                  <div style={{
-                    background: "#ffffff",
-                    padding: "20px",
-                    borderRadius: "20px 20px 20px 0",
-                    color: "#333",
-                    boxShadow: "0 4px 15px rgba(0,0,0,0.06)",
-                    minWidth: "250px"
-                  }}>
-                    <h2 style={{ margin: "0 0 5px 0", fontSize: "26px", color: "#333", fontWeight: "600" }}>
-                      {msg.result.word}
-                    </h2>
-                    <p style={{ margin: "0 0 15px 0", fontSize: "16px", color: "#888", fontStyle: "italic" }}>
-                      [{msg.result.transcription.replace(/[\[\]]/g, "")}]
-                    </p>
-                    
-                    <div style={{ background: "#fff0f5", padding: "12px 15px", borderRadius: "12px", marginBottom: "15px" }}>
-                      <p style={{ margin: 0, fontSize: "20px", fontWeight: "600", color: "#d81b60" }}>
-                        {msg.result.translation}
-                      </p>
-                    </div>
-                    
+                  
+                  {msg.result.transcription !== "no-no" && (
                     <div style={{ fontSize: "16px", color: "#555", lineHeight: "1.4" }}>
                       <p style={{ margin: "0 0 8px 0" }}>• {msg.result.examples[0]}</p>
                       <p style={{ margin: 0 }}>• {msg.result.examples[1]}</p>
                     </div>
+                  )}
+
+                  <div style={{ position: 'absolute', bottom: '15px', right: '15px', display: 'flex', gap: '10px' }}>
+                    <button 
+                      className="action-button" 
+                      onClick={() => playAudio(msg.result.word)}
+                      disabled={isPlayingAudio}
+                      style={{ background: '#e3f2fd', color: '#1976d2' }}
+                      title="Послушать">
+                      {isPlayingAudio ? <span style={{ animation: "spin 1s linear infinite", display: "inline-block" }}>⏳</span> : "🔊"}
+                    </button>
+
+                    <button 
+                      className="action-button" 
+                      onClick={() => msg.result.generatedImageUrl ? setModalImage(msg.result.generatedImageUrl) : handleGenerateImage(msg.result.word, msg.id)}
+                      disabled={isDrawing || msg.result.transcription === "no-no"} 
+                      style={{ background: msg.result.generatedImageUrl ? '#e8f5e9' : '#fce4ec', color: msg.result.generatedImageUrl ? '#388e3c' : '#d81b60' }}
+                      title={msg.result.generatedImageUrl ? "Показать картинку" : "Нарисовать картинку"}>
+                      {msg.result.generatedImageUrl ? '🖼️' : '🎨'}
+                    </button>
                   </div>
-                )
+                </div>
+              ) : (
+                <div style={{ background: "#ffffff", color: "#333", padding: "12px 20px", borderRadius: "20px 20px 20px 0", fontSize: "18px", boxShadow: "0 2px 8px rgba(0,0,0,0.05)" }}>
+                  {msg.text}
+                </div>
               )}
             </div>
           ))}
 
-          {isProcessing && (
-            <div style={{ alignSelf: "flex-start", animation: "slideIn 0.3s ease-out" }}>
-              <div style={{ background: "#fff3e0", color: "#e65100", padding: "12px 20px", borderRadius: "20px 20px 20px 0", fontSize: "16px", fontWeight: "500", animation: "pulse 1.5s infinite", boxShadow: "0 2px 8px rgba(230, 81, 0, 0.1)" }}>
-                Распознаю голос... 🎧
-              </div>
-            </div>
-          )}
-
-          {isTranslating && (
-            <div style={{ alignSelf: "flex-start", animation: "slideIn 0.3s ease-out" }}>
-              <div style={{ background: "#f3e5f5", color: "#6a1b9a", padding: "12px 20px", borderRadius: "20px 20px 20px 0", fontSize: "16px", fontWeight: "500", animation: "pulse 1.5s infinite", boxShadow: "0 2px 8px rgba(106, 27, 154, 0.1)" }}>
-                Перевожу... 🧠
-              </div>
-            </div>
-          )}
-
-          {needsConfirmation && (
-            <div style={{ alignSelf: "flex-start", maxWidth: "85%", animation: "slideIn 0.3s ease-out" }}>
-              <div style={{ background: "#ffffff", padding: "15px", borderRadius: "20px 20px 20px 0", boxShadow: "0 4px 15px rgba(0,0,0,0.06)" }}>
-                <p style={{ margin: "0 0 15px 0", fontSize: "18px", color: "#333" }}>
-                  Я услышала: <b>"{recognizedWord}"</b><br/>Все верно?
-                </p>
-                <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
-                  <button onClick={() => analyzeWord(recognizedWord)} style={{ flex: 1, background: "#4CAF50", color: "white", padding: "10px", border: "none", borderRadius: "12px", cursor: "pointer", fontWeight: "500" }}>✅ Да</button>
-                  <button onClick={() => setNeedsConfirmation(false)} style={{ flex: 1, background: "#f44336", color: "white", padding: "10px", border: "none", borderRadius: "12px", cursor: "pointer", fontWeight: "500" }}>🎤 Нет</button>
-                  <button onClick={() => { setNeedsConfirmation(false); setIsSpellingMode(true); }} style={{ width: "100%", background: "#ff9800", color: "white", padding: "10px", border: "none", borderRadius: "12px", cursor: "pointer", fontWeight: "500", marginTop: "4px" }}>🔤 По буквам</button>
-                </div>
-              </div>
-            </div>
-          )}
+          {isProcessing && <div style={{ alignSelf: "flex-start" }}><div style={{ background: "#fff3e0", color: "#e65100", padding: "10px 20px", borderRadius: "15px", animation: "pulse 1.5s infinite" }}>Распознаю... 🎧</div></div>}
+          {isTranslating && <div style={{ alignSelf: "flex-start" }}><div style={{ background: "#f3e5f5", color: "#6a1b9a", padding: "10px 20px", borderRadius: "15px", animation: "pulse 1.5s infinite" }}>Перевожу... 🧠</div></div>}
+          {isDrawing && <div style={{ alignSelf: "flex-start" }}><div style={{ background: "#e8f5e9", color: "#1b5e20", padding: "10px 20px", borderRadius: "15px", animation: "pulse 1.5s infinite" }}>Рисую мультик... 🎨</div></div>}
 
           <div ref={messagesEndRef} style={{ height: "1px" }} />
         </div>
 
-        {/* ПАНЕЛЬ ВВОДА */}
-        <div style={{ 
-          flex: "0 0 auto", 
-          padding: "15px 20px 25px 20px", 
-          background: "rgba(255, 255, 255, 0.9)", 
-          backdropFilter: "blur(10px)",
-          borderTop: "1px solid rgba(0,0,0,0.05)",
-          display: "flex",
-          gap: "10px",
-          alignItems: "center"
-        }}>
-          <input
-            value={word}
-            onChange={(e) => setWord(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder={isSpellingMode ? "Spelling mode (C-A-T)..." : "Напиши слово..."}
-            disabled={isProcessing || isTranslating}
-            style={{ 
-              fontFamily: "'Fredoka', sans-serif",
-              height: "55px", 
-              padding: "0 20px", 
-              fontSize: "18px", 
-              flex: "1", 
-              color: "#333",       
-              backgroundColor: "#f5f5f5", 
-              border: "1px solid transparent", 
-              borderRadius: "28px", 
-              transition: "all 0.3s ease",
-              boxSizing: "border-box"
-            }}
-          />
-
-          <button 
-            onClick={handleMainButtonClick} 
-            disabled={isProcessing || isTranslating}
-            style={{ 
-              height: "55px", 
-              width: "55px",  
-              flexShrink: 0,
-              cursor: (isProcessing || isTranslating) ? "not-allowed" : "pointer", 
-              background: word.trim() ? "#2196F3" : (isRecording ? "#f44336" : (isSpellingMode ? "#ffb74d" : "#ff4081")),
-              color: "white",
-              borderRadius: isRecording && !word.trim() ? "15px" : "50%", 
-              border: "none",
-              display: "flex",
-              justifyContent: "center",
-              alignItems: "center",
-              fontSize: "24px",
-              boxShadow: word.trim() ? "0 4px 15px rgba(33, 150, 243, 0.3)" : "0 4px 15px rgba(255, 64, 129, 0.3)",
-              transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)", 
-              opacity: (isProcessing || isTranslating) ? 0.5 : 1,
-
-              WebkitUserSelect: "none",
-              userSelect: "none",
-              touchAction: "manipulation", 
-              WebkitTapHighlightColor: "transparent"
-            }}
-            title={word.trim() ? "Отправить" : "Нажмите, чтобы начать/остановить запись"}
-          >
+        <div style={{ flex: "0 0 auto", padding: "15px 20px 25px 20px", background: "rgba(255, 255, 255, 0.9)", backdropFilter: "blur(10px)", borderTop: "1px solid rgba(0,0,0,0.05)", display: "flex", gap: "10px", alignItems: "center" }}>
+          <input value={word} onChange={(e) => setWord(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleMainButtonClick()} placeholder="Напиши слово..." disabled={isProcessing || isTranslating || isDrawing} style={{ fontFamily: "'Fredoka', sans-serif", height: "55px", padding: "0 20px", fontSize: "18px", flex: "1", color: "#333", backgroundColor: "#f5f5f5", border: "1px solid transparent", borderRadius: "28px", boxSizing: "border-box" }} />
+          <button onClick={handleMainButtonClick} disabled={isProcessing || isTranslating || isDrawing} style={{ height: "55px", width: "55px", flexShrink: 0, cursor: "pointer", background: word.trim() ? "#2196F3" : (isRecording ? "#f44336" : "#ff4081"), color: "white", borderRadius: isRecording && !word.trim() ? "15px" : "50%", border: "none", fontSize: "24px", boxShadow: "0 4px 15px rgba(0,0,0,0.1)", transition: "all 0.3s ease" }}>
             {word.trim() ? "🚀" : (isRecording ? "🛑" : "🎤")}
           </button>
         </div>
       </div>
+
+      {modalImage && (
+        <div onClick={() => setModalImage(null)} style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000, animation: 'fadeIn 0.3s ease' }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ position: 'relative', background: 'white', padding: '10px', borderRadius: '25px', boxShadow: '0 10px 25px rgba(0,0,0,0.3)', maxWidth: '90%', width: '400px' }}>
+            <img src={modalImage} alt="Generated cartoon" style={{ width: '100%', height: 'auto', borderRadius: '20px', display: 'block' }} />
+            <button onClick={() => setModalImage(null)} style={{ position: 'absolute', top: '-15px', right: '-15px', width: '40px', height: '40px', borderRadius: '50%', background: '#f44336', color: 'white', border: '4px solid white', fontSize: '20px', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 5px rgba(0,0,0,0.2)' }}>✕</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
