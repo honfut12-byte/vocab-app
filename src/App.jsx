@@ -23,19 +23,11 @@ export default function App() {
   
   // Поля для детского входа
   const [childName, setChildName] = useState("");
-  const [selectedQuestion, setSelectedQuestion] = useState("");
   const [securityAnswer, setSecurityAnswer] = useState("");
 
+  const SECURITY_QUESTION = "Какую сладость ты любишь больше всего? 🍭";
   const [isAuthLoading, setIsAuthLoading] = useState(false);
   const [isInitialLoading, setIsInitialLoading] = useState(true);
-
-  const questions = [
-    "Как зовут твоего питомца? 🐾",
-    "Как зовут твою маму? ❤️",
-    "Какой твой любимый супергерой? 🦸‍♂️",
-    "Твой любимый цвет? 🌈",
-    "Какую сладость ты любишь больше всего? 🍭"
-  ];
 
   // ТЕПЕРЬ МЫ ХРАНИМ ID КОНКРЕТНОГО СООБЩЕНИЯ, А НЕ ОБЩИЙ СТАТУС
   const [drawingMessageId, setDrawingMessageId] = useState(null); 
@@ -162,7 +154,7 @@ export default function App() {
   };
 
   const handleAuth = async (type) => {
-    if (!childName || !securityAnswer || !selectedQuestion) {
+    if (!childName || !securityAnswer) {
       return alert("Заполни все поля, чтобы мы тебя узнали! 🎀");
     }
 
@@ -183,7 +175,7 @@ export default function App() {
             options: {
               data: {
                 child_name: childName,
-                security_question: selectedQuestion
+                security_question: SECURITY_QUESTION
               }
             }
           });
@@ -264,36 +256,50 @@ export default function App() {
   if (!session) {
     return (
       <div style={{ height: "100dvh", display: "flex", alignItems: "center", justifyContent: "center", background: "#fff5f8", fontFamily: "'Fredoka', sans-serif" }}>
-        <div style={{ background: "white", padding: "clamp(20px, 8vw, 40px)", borderRadius: "30px", boxShadow: "0 10px 25px rgba(255, 117, 140, 0.1)", width: "90%", maxWidth: "400px", textAlign: "center", boxSizing: "border-box" }}>
-          <h1 style={{ color: "#ff758c", marginBottom: "20px", fontSize: "2rem" }}>LizAlis 🎀</h1>
+        <div style={{ 
+          background: "white", 
+          padding: "clamp(20px, 8vw, 40px)", 
+          borderRadius: "40px", 
+          boxShadow: "0 20px 40px rgba(255, 117, 140, 0.15)", 
+          width: "90%", 
+          maxWidth: "420px", 
+          textAlign: "center", 
+          boxSizing: "border-box",
+          border: "4px solid #fff"
+        }}>
+          <div style={{ fontSize: "4rem", marginBottom: "10px" }}>🎀</div>
+          <h1 style={{ 
+            margin: "0 0 10px 0", 
+            fontSize: "2.5rem", 
+            fontWeight: "600", 
+            background: "linear-gradient(45deg, #ff758c 0%, #ff7eb3 100%)", 
+            WebkitBackgroundClip: "text", 
+            WebkitTextFillColor: "transparent" 
+          }}>LizAlis</h1>
+          <p style={{ color: "#ff758c", marginBottom: "30px", fontSize: "1.1rem" }}>Давай знакомиться!</p>
           
-          <div style={{ display: "flex", flexDirection: "column", gap: "12px", marginBottom: "20px" }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: "20px", marginBottom: "30px" }}>
+            <div style={{ textAlign: "left" }}>
+              <label style={{ display: "block", marginLeft: "15px", marginBottom: "8px", color: "#64b5f6", fontWeight: "600", fontSize: "14px" }}>КАК ТЕБЯ ЗОВУТ?</label>
             <input 
               type="text" 
-              placeholder="Как тебя зовут?" 
+              placeholder="Твоё имя..." 
               value={childName} 
               onChange={(e) => setChildName(e.target.value)} 
-              style={{ width: "100%", height: "50px", borderRadius: "25px", border: "2px solid #fff0f5", padding: "0 20px", boxSizing: "border-box", fontSize: "16px" }} 
+              style={{ width: "100%", height: "55px", borderRadius: "20px", border: "3px solid #e3f2fd", background: "#f1f8ff", padding: "0 20px", boxSizing: "border-box", fontSize: "18px", color: "#1976d2", transition: "all 0.3s ease" }} 
             />
+            </div>
             
-            <div style={{ textAlign: "left", paddingLeft: "15px", color: "#ff758c", fontSize: "14px" }}>тебе вопросик... 👇</div>
-            
-            <select 
-              value={selectedQuestion} 
-              onChange={(e) => setSelectedQuestion(e.target.value)}
-              style={{ width: "100%", height: "50px", borderRadius: "25px", border: "2px solid #fff0f5", padding: "0 15px", boxSizing: "border-box", fontSize: "16px", backgroundColor: "white", color: "#555" }}
-            >
-              <option value="" disabled>Выбери вопрос</option>
-              {questions.map((q, i) => <option key={i} value={q}>{q}</option>)}
-            </select>
-
+            <div style={{ textAlign: "left" }}>
+              <label style={{ display: "block", marginLeft: "15px", marginBottom: "8px", color: "#ffb74d", fontWeight: "600", fontSize: "14px" }}>{SECURITY_QUESTION.toUpperCase()}</label>
             <input 
               type="text" 
-              placeholder="Твой ответ" 
+              placeholder="Мой ответ..." 
               value={securityAnswer} 
               onChange={(e) => setSecurityAnswer(e.target.value)} 
-              style={{ width: "100%", height: "50px", borderRadius: "25px", border: "2px solid #fff0f5", padding: "0 20px", boxSizing: "border-box", fontSize: "16px" }} 
+              style={{ width: "100%", height: "55px", borderRadius: "20px", border: "3px solid #fff8e1", background: "#fffdf0", padding: "0 20px", boxSizing: "border-box", fontSize: "18px", color: "#f57c00", transition: "all 0.3s ease" }} 
             />
+            </div>
           </div>
 
           <div style={{ display: "flex", gap: "10px" }}>
@@ -301,8 +307,9 @@ export default function App() {
               onClick={() => handleAuth('login')} 
               disabled={isAuthLoading}
               style={{ 
-                flex: 1, height: "50px", borderRadius: "25px", border: "none", 
-                background: "#ff758c", color: "white", fontWeight: "600", 
+                flex: 1, height: "60px", borderRadius: "20px", border: "none", 
+                background: "linear-gradient(135deg, #ff758c 0%, #ff7eb3 100%)", color: "white", fontWeight: "600", fontSize: "18px",
+                boxShadow: "0 4px 15px rgba(255, 117, 140, 0.4)",
                 cursor: isAuthLoading ? "wait" : "pointer", opacity: isAuthLoading ? 0.7 : 1 
               }}
             >
@@ -312,8 +319,8 @@ export default function App() {
               onClick={() => handleAuth('signup')} 
               disabled={isAuthLoading}
               style={{ 
-                flex: 1, height: "50px", borderRadius: "25px", border: "2px solid #fff0f5", 
-                background: "none", color: "#ff758c", fontWeight: "600", 
+                flex: 1, height: "60px", borderRadius: "20px", border: "3px solid #ff758c", 
+                background: "white", color: "#ff758c", fontWeight: "600", fontSize: "18px",
                 cursor: isAuthLoading ? "wait" : "pointer", opacity: isAuthLoading ? 0.7 : 1 
               }}
             >
