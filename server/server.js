@@ -3,6 +3,7 @@ import cors from "cors"
 import OpenAI from "openai"
 import multer from "multer"
 import fs from "fs"
+import { createClient } from "@supabase/supabase-js"
 import os from "os"
 
 const app = express()
@@ -16,13 +17,18 @@ if (!process.env.OPENAI_API_KEY) {
   process.exit(1)
 }
 
+const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_KEY
+)
+
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY
 })
 
 // --- 1. АНАЛИЗАТОР-ЛЕКСИКОГРАФ (EN <-> RU) ---
 app.post("/analyze", async (req, res) => {
-  const { word } = req.body
+  const { word, userId } = req.body
   console.log("--- Analyzing phrase:", word);
 
   try {
@@ -58,6 +64,19 @@ Response ONLY in JSON:
     })
 
     const result = JSON.parse(completion.choices[0].message.content)
+
+    // Сохраняем в Supabase, если передан userId
+    if (userId) {
+      await supabase.from("user_vocabulary").insert({
+        user_id: userId,
+        word: result.word,
+        translation: result.translation,
+        transcription: result.transcription,
+        examples: result.examples,
+        gif_query: result.gif_query
+      })
+    }
+
     res.json(result)
   } catch (err) {
     console.error("GPT Error:", err)

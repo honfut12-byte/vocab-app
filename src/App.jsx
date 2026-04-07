@@ -1,6 +1,13 @@
 import { useState, useRef, useEffect } from "react";
+import { createClient } from "@supabase/supabase-js";
 
 const API_BASE_URL = "https://vocab-app-m8ti.onrender.com";
+
+// Используем только ANON KEY на фронтенде
+const supabase = createClient(
+  import.meta.env.VITE_SUPABASE_URL,
+  import.meta.env.VITE_SUPABASE_ANON_KEY
+);
 
 export default function App() {
   const [word, setWord] = useState("");
@@ -12,6 +19,10 @@ export default function App() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [isTranslating, setIsTranslating] = useState(false); 
   
+  const [session, setSession] = useState(null);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+
   // ТЕПЕРЬ МЫ ХРАНИМ ID КОНКРЕТНОГО СООБЩЕНИЯ, А НЕ ОБЩИЙ СТАТУС
   const [drawingMessageId, setDrawingMessageId] = useState(null); 
   const [playingAudioId, setPlayingAudioId] = useState(null); 
@@ -23,6 +34,16 @@ export default function App() {
   const recordingTimerRef = useRef(null);
   const streamRef = useRef(null); 
   const messagesEndRef = useRef(null);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+    });
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+    });
+    return () => subscription.unsubscribe();
+  }, []);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -100,7 +121,10 @@ export default function App() {
       const res = await fetch(`${API_BASE_URL}/analyze`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ word: target }),
+        body: JSON.stringify({ 
+          word: target, 
+          userId: session?.user?.id // Передаем ID пользователя
+        }),
       });
       const data = await res.json();
       setChatHistory(prev => [...prev, { id: Date.now() + 1, sender: "bot", type: "result", result: data }]);
@@ -110,6 +134,15 @@ export default function App() {
     } finally {
       setIsTranslating(false); 
     }
+  };
+
+  const handleAuth = async (type) => {
+    if (!email || !password) return alert("Введи почту и пароль 🎀");
+    const { error } = type === 'login' 
+      ? await supabase.auth.signInWithPassword({ email, password })
+      : await supabase.auth.signUp({ email, password });
+    
+    if (error) alert(error.message);
   };
 
   const startRecording = async () => {
@@ -161,6 +194,22 @@ export default function App() {
     if (word.trim()) { analyzeWord(word); return; }
     if (isRecording) stopRecording(); else startRecording();
   };
+
+  if (!session) {
+    return (
+      <div style={{ height: "100dvh", display: "flex", alignItems: "center", justifyContent: "center", background: "#fff5f8", fontFamily: "'Fredoka', sans-serif" }}>
+        <div style={{ background: "white", padding: "40px", borderRadius: "30px", boxShadow: "0 10px 25px rgba(255, 117, 140, 0.1)", width: "90%", maxWidth: "400px", textAlign: "center" }}>
+          <h1 style={{ color: "#ff758c", marginBottom: "30px" }}>LizAlis 🎀</h1>
+          <input type="email" placeholder="Почта" value={email} onChange={(e) => setEmail(e.target.value)} style={{ width: "100%", height: "50px", borderRadius: "25px", border: "2px solid #fff0f5", padding: "0 20px", marginBottom: "15px", boxSizing: "border-box" }} />
+          <input type="password" placeholder="Пароль" value={password} onChange={(e) => setPassword(e.target.value)} style={{ width: "100%", height: "50px", borderRadius: "25px", border: "2px solid #fff0f5", padding: "0 20px", marginBottom: "25px", boxSizing: "border-box" }} />
+          <div style={{ display: "flex", gap: "10px" }}>
+            <button onClick={() => handleAuth('login')} style={{ flex: 1, height: "50px", borderRadius: "25px", border: "none", background: "#ff758c", color: "white", fontWeight: "600", cursor: "pointer" }}>Войти</button>
+            <button onClick={() => handleAuth('signup')} style={{ flex: 1, height: "50px", borderRadius: "25px", border: "2px solid #ff758c", background: "none", color: "#ff758c", fontWeight: "600", cursor: "pointer" }}>Создать</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{ height: "100dvh", width: "100vw", position: "fixed", top: 0, left: 0, backgroundColor: "#fff5f8", fontFamily: "'Fredoka', sans-serif", overflow: "hidden" }}>
@@ -226,8 +275,10 @@ export default function App() {
 
       <div style={{ maxWidth: "700px", margin: "0 auto", height: "100%", display: "flex", flexDirection: "column", position: "relative", zIndex: 1, backgroundColor: "rgba(255, 255, 255, 0.4)" }}>
         
-        <div style={{ flex: "0 0 auto", padding: "15px 20px", background: "rgba(255, 255, 255, 0.85)", backdropFilter: "blur(10px)", borderBottom: "1px solid rgba(255, 117, 140, 0.2)", textAlign: "center" }}>
+        <div style={{ flex: "0 0 auto", padding: "15px 20px", background: "rgba(255, 255, 255, 0.85)", backdropFilter: "blur(10px)", borderBottom: "1px solid rgba(255, 117, 140, 0.2)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div style={{ width: "40px" }}></div>
           <h1 style={{ margin: 0, fontSize: "2.2rem", fontWeight: "600", background: "linear-gradient(45deg, #ff758c 0%, #ff7eb3 100%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>LizAlis</h1>
+          <button onClick={() => supabase.auth.signOut()} style={{ background: "none", border: "1px solid #ff758c", color: "#ff758c", borderRadius: "15px", padding: "5px 10px", fontSize: "12px", cursor: "pointer" }}>Выйти</button>
         </div>
 
         <div className="chat-container" style={{ flex: "1 1 auto", padding: "20px", display: "flex", flexDirection: "column", gap: "15px" }}>
