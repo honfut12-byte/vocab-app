@@ -20,10 +20,22 @@ export default function App() {
   const [isTranslating, setIsTranslating] = useState(false); 
   
   const [session, setSession] = useState(null);
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  
+  // Поля для детского входа
+  const [childName, setChildName] = useState("");
+  const [selectedQuestion, setSelectedQuestion] = useState("");
+  const [securityAnswer, setSecurityAnswer] = useState("");
+
   const [isAuthLoading, setIsAuthLoading] = useState(false);
   const [isInitialLoading, setIsInitialLoading] = useState(true);
+
+  const questions = [
+    "Как зовут твоего питомца? 🐾",
+    "Как зовут твою маму? ❤️",
+    "Какой твой любимый супергерой? 🦸‍♂️",
+    "Твой любимый цвет? 🌈",
+    "Какую сладость ты любишь больше всего? 🍭"
+  ];
 
   // ТЕПЕРЬ МЫ ХРАНИМ ID КОНКРЕТНОГО СООБЩЕНИЯ, А НЕ ОБЩИЙ СТАТУС
   const [drawingMessageId, setDrawingMessageId] = useState(null); 
@@ -150,23 +162,38 @@ export default function App() {
   };
 
   const handleAuth = async (type) => {
-    if (!email || !password) return alert("Введи почту и пароль 🎀");
+    if (!childName || !securityAnswer || !selectedQuestion) {
+      return alert("Заполни все поля, чтобы мы тебя узнали! 🎀");
+    }
+
     setIsAuthLoading(true);
+
+    // Создаем скрытые учетные данные:
+    // Email: name_answer@lizalis.local
+    // Password: answer_name_secret
+    const pseudoEmail = `${childName.toLowerCase().trim()}_${securityAnswer.toLowerCase().trim()}@lizalis.local`;
+    const pseudoPassword = `${securityAnswer.toLowerCase().trim()}_${childName.toLowerCase().trim()}_safe`;
+
     try {
-      const { data, error } = type === 'login' 
-        ? await supabase.auth.signInWithPassword({ email, password })
-        : await supabase.auth.signUp({ email, password });
+      const { data, error } = type === 'login'
+        ? await supabase.auth.signInWithPassword({ email: pseudoEmail, password: pseudoPassword })
+        : await supabase.auth.signUp({ 
+            email: pseudoEmail, 
+            password: pseudoPassword,
+            options: {
+              data: {
+                child_name: childName,
+                security_question: selectedQuestion
+              }
+            }
+          });
     
       if (error) {
-        alert(error.message);
-        if (error.message.includes("email rate limit exceeded")) {
-          alert("Ой! Мы отправили слишком много писем. Пожалуйста, подожди часик или попробуй другую почту. ⏳");
+        if (error.message.includes("Invalid login credentials")) {
+          alert("Ой! Кажется, имя или ответ не подходят. Проверь еще раз! 🔍");
         } else {
           alert(error.message);
         }
-      } else if (type === 'signup' && data.user && !data.session) {
-        // Если регистрация прошла успешно, но нужно подтверждение почты
-        alert("Регистрация почти завершена! Проверь свою почту и нажми на ссылку в письме 💌");
       }
     } catch (err) {
       console.error("Auth error:", err);
@@ -238,9 +265,37 @@ export default function App() {
     return (
       <div style={{ height: "100dvh", display: "flex", alignItems: "center", justifyContent: "center", background: "#fff5f8", fontFamily: "'Fredoka', sans-serif" }}>
         <div style={{ background: "white", padding: "clamp(20px, 8vw, 40px)", borderRadius: "30px", boxShadow: "0 10px 25px rgba(255, 117, 140, 0.1)", width: "90%", maxWidth: "400px", textAlign: "center", boxSizing: "border-box" }}>
-          <h1 style={{ color: "#ff758c", marginBottom: "30px" }}>LizAlis 🎀</h1>
-          <input type="email" placeholder="Почта" value={email} onChange={(e) => setEmail(e.target.value)} style={{ width: "100%", height: "50px", borderRadius: "25px", border: "2px solid #fff0f5", padding: "0 20px", marginBottom: "15px", boxSizing: "border-box" }} />
-          <input type="password" placeholder="Пароль" value={password} onChange={(e) => setPassword(e.target.value)} style={{ width: "100%", height: "50px", borderRadius: "25px", border: "2px solid #fff0f5", padding: "0 20px", marginBottom: "25px", boxSizing: "border-box" }} />
+          <h1 style={{ color: "#ff758c", marginBottom: "20px", fontSize: "2rem" }}>LizAlis 🎀</h1>
+          
+          <div style={{ display: "flex", flexDirection: "column", gap: "12px", marginBottom: "20px" }}>
+            <input 
+              type="text" 
+              placeholder="Как тебя зовут?" 
+              value={childName} 
+              onChange={(e) => setChildName(e.target.value)} 
+              style={{ width: "100%", height: "50px", borderRadius: "25px", border: "2px solid #fff0f5", padding: "0 20px", boxSizing: "border-box", fontSize: "16px" }} 
+            />
+            
+            <div style={{ textAlign: "left", paddingLeft: "15px", color: "#ff758c", fontSize: "14px" }}>тебе вопросик... 👇</div>
+            
+            <select 
+              value={selectedQuestion} 
+              onChange={(e) => setSelectedQuestion(e.target.value)}
+              style={{ width: "100%", height: "50px", borderRadius: "25px", border: "2px solid #fff0f5", padding: "0 15px", boxSizing: "border-box", fontSize: "16px", backgroundColor: "white", color: "#555" }}
+            >
+              <option value="" disabled>Выбери вопрос</option>
+              {questions.map((q, i) => <option key={i} value={q}>{q}</option>)}
+            </select>
+
+            <input 
+              type="text" 
+              placeholder="Твой ответ" 
+              value={securityAnswer} 
+              onChange={(e) => setSecurityAnswer(e.target.value)} 
+              style={{ width: "100%", height: "50px", borderRadius: "25px", border: "2px solid #fff0f5", padding: "0 20px", boxSizing: "border-box", fontSize: "16px" }} 
+            />
+          </div>
+
           <div style={{ display: "flex", gap: "10px" }}>
             <button 
               onClick={() => handleAuth('login')} 
