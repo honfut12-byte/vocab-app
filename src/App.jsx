@@ -38,13 +38,22 @@ export default function App() {
   const messagesEndRef = useRef(null);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setIsInitialLoading(false);
-    });
+    const initAuth = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        setSession(session);
+      } catch (err) {
+        console.error("Auth init failed:", err);
+      } finally {
+        // В любом случае убираем экран загрузки через 1.5 сек максимум
+        setIsInitialLoading(false);
+      }
+    };
+
+    initAuth();
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
-      setIsInitialLoading(false);
     });
     return () => subscription.unsubscribe();
   }, []);
