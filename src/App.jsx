@@ -22,6 +22,7 @@ export default function App() {
   const [session, setSession] = useState(null);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [isAuthLoading, setIsAuthLoading] = useState(false);
 
   // ТЕПЕРЬ МЫ ХРАНИМ ID КОНКРЕТНОГО СООБЩЕНИЯ, А НЕ ОБЩИЙ СТАТУС
   const [drawingMessageId, setDrawingMessageId] = useState(null); 
@@ -138,11 +139,24 @@ export default function App() {
 
   const handleAuth = async (type) => {
     if (!email || !password) return alert("Введи почту и пароль 🎀");
-    const { error } = type === 'login' 
-      ? await supabase.auth.signInWithPassword({ email, password })
-      : await supabase.auth.signUp({ email, password });
+    setIsAuthLoading(true);
+    try {
+      const { data, error } = type === 'login' 
+        ? await supabase.auth.signInWithPassword({ email, password })
+        : await supabase.auth.signUp({ email, password });
     
-    if (error) alert(error.message);
+      if (error) {
+        alert(error.message);
+      } else if (type === 'signup' && data.user && !data.session) {
+        // Если регистрация прошла успешно, но нужно подтверждение почты
+        alert("Регистрация почти завершена! Проверь свою почту и нажми на ссылку в письме 💌");
+      }
+    } catch (err) {
+      console.error("Auth error:", err);
+      alert("Произошла ошибка при входе или регистрации 🥺");
+    } finally {
+      setIsAuthLoading(false);
+    }
   };
 
   const startRecording = async () => {
@@ -203,8 +217,28 @@ export default function App() {
           <input type="email" placeholder="Почта" value={email} onChange={(e) => setEmail(e.target.value)} style={{ width: "100%", height: "50px", borderRadius: "25px", border: "2px solid #fff0f5", padding: "0 20px", marginBottom: "15px", boxSizing: "border-box" }} />
           <input type="password" placeholder="Пароль" value={password} onChange={(e) => setPassword(e.target.value)} style={{ width: "100%", height: "50px", borderRadius: "25px", border: "2px solid #fff0f5", padding: "0 20px", marginBottom: "25px", boxSizing: "border-box" }} />
           <div style={{ display: "flex", gap: "10px" }}>
-            <button onClick={() => handleAuth('login')} style={{ flex: 1, height: "50px", borderRadius: "25px", border: "none", background: "#ff758c", color: "white", fontWeight: "600", cursor: "pointer" }}>Войти</button>
-            <button onClick={() => handleAuth('signup')} style={{ flex: 1, height: "50px", borderRadius: "25px", border: "2px solid #ff758c", background: "none", color: "#ff758c", fontWeight: "600", cursor: "pointer" }}>Создать</button>
+            <button 
+              onClick={() => handleAuth('login')} 
+              disabled={isAuthLoading}
+              style={{ 
+                flex: 1, height: "50px", borderRadius: "25px", border: "none", 
+                background: "#ff758c", color: "white", fontWeight: "600", 
+                cursor: isAuthLoading ? "wait" : "pointer", opacity: isAuthLoading ? 0.7 : 1 
+              }}
+            >
+              {isAuthLoading ? "..." : "Войти"}
+            </button>
+            <button 
+              onClick={() => handleAuth('signup')} 
+              disabled={isAuthLoading}
+              style={{ 
+                flex: 1, height: "50px", borderRadius: "25px", border: "2px solid #fff0f5", 
+                background: "none", color: "#ff758c", fontWeight: "600", 
+                cursor: isAuthLoading ? "wait" : "pointer", opacity: isAuthLoading ? 0.7 : 1 
+              }}
+            >
+              {isAuthLoading ? "..." : "Создать"}
+            </button>
           </div>
         </div>
       </div>
