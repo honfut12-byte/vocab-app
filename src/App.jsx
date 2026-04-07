@@ -1,5 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 
+const API_BASE_URL = "https://vocab-app-m8ti.onrender.com";
+
 export default function App() {
   const [word, setWord] = useState("");
   const [chatHistory, setChatHistory] = useState([
@@ -32,7 +34,7 @@ export default function App() {
     setPlayingAudioId(id); // Крутим часы ТОЛЬКО на этой кнопке
     
     try {
-      const res = await fetch("https://vocab-app-m8ti.onrender.com/speak", {
+      const res = await fetch(`${API_BASE_URL}/speak`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ text }),
@@ -62,7 +64,7 @@ export default function App() {
     setDrawingMessageId(messageId); // Крутим часы ТОЛЬКО на этой кнопке
 
     try {
-      const res = await fetch("https://vocab-app-m8ti.onrender.com/generate-image", {
+      const res = await fetch(`${API_BASE_URL}/generate-image`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ word: wordToDraw }),
@@ -95,7 +97,7 @@ export default function App() {
     
     setIsTranslating(true); 
     try {
-      const res = await fetch("https://vocab-app-m8ti.onrender.com/analyze", {
+      const res = await fetch(`${API_BASE_URL}/analyze`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ word: target }),
@@ -147,7 +149,7 @@ export default function App() {
     const formData = new FormData();
     formData.append("audio", audioBlob, "voice_record");
     try {
-      const res = await fetch("https://vocab-app-m8ti.onrender.com/transcribe", { method: "POST", body: formData });
+      const res = await fetch(`${API_BASE_URL}/transcribe`, { method: "POST", body: formData });
       const data = await res.json();
       if (data.text) analyzeWord(data.text);
     } catch (error) { console.error(error); alert("Ошибка распознавания.");

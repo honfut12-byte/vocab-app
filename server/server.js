@@ -11,6 +11,11 @@ app.use(express.json())
 
 const upload = multer({ dest: os.tmpdir() })
 
+if (!process.env.OPENAI_API_KEY) {
+  console.error("Critical Error: OPENAI_API_KEY is not defined in environment variables.")
+  process.exit(1)
+}
+
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY
 })
@@ -122,17 +127,23 @@ app.post("/transcribe", upload.single("audio"), async (req, res) => {
     if (req.body.mode === "spell" && text) {
       const sc = await openai.chat.completions.create({
         model: "gpt-4o-mini",
-        messages: [{ role: "system", content: "Return ONLY the English word." }, { role: "user", content: text }],
+        messages: [
+          { role: "system", content: "You are a spelling assistant. Return ONLY the English word or phrase recognized, stripped of any punctuation or meta-talk." },
+          { role: "user", content: text }
+        ],
         temperature: 0.1
       })
       text = sc.choices[0].message.content.trim()
     }
 
-    if (fs.existsSync(filePathWithExt)) fs.unlinkSync(filePathWithExt)
     res.json({ text })
   } catch (error) {
-    if (filePathWithExt && fs.existsSync(filePathWithExt)) fs.unlinkSync(filePathWithExt)
+    console.error("Transcription Error:", error)
     res.status(500).send("Transcription failed")
+  } finally {
+    if (filePathWithExt && fs.existsSync(filePathWithExt)) {
+      try { fs.unlinkSync(filePathWithExt) } catch (e) { console.error("FS Error:", e) }
+    }
   }
 })
 
