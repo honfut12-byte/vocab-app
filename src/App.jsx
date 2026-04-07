@@ -23,6 +23,7 @@ export default function App() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isAuthLoading, setIsAuthLoading] = useState(false);
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
 
   // ТЕПЕРЬ МЫ ХРАНИМ ID КОНКРЕТНОГО СООБЩЕНИЯ, А НЕ ОБЩИЙ СТАТУС
   const [drawingMessageId, setDrawingMessageId] = useState(null); 
@@ -39,9 +40,11 @@ export default function App() {
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
+      setIsInitialLoading(false);
     });
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
+      setIsInitialLoading(false);
     });
     return () => subscription.unsubscribe();
   }, []);
@@ -147,6 +150,11 @@ export default function App() {
     
       if (error) {
         alert(error.message);
+        if (error.message.includes("email rate limit exceeded")) {
+          alert("Ой! Мы отправили слишком много писем. Пожалуйста, подожди часик или попробуй другую почту. ⏳");
+        } else {
+          alert(error.message);
+        }
       } else if (type === 'signup' && data.user && !data.session) {
         // Если регистрация прошла успешно, но нужно подтверждение почты
         alert("Регистрация почти завершена! Проверь свою почту и нажми на ссылку в письме 💌");
@@ -208,6 +216,14 @@ export default function App() {
     if (word.trim()) { analyzeWord(word); return; }
     if (isRecording) stopRecording(); else startRecording();
   };
+
+  if (isInitialLoading) {
+    return (
+      <div style={{ height: "100dvh", display: "flex", alignItems: "center", justifyContent: "center", background: "#fff5f8" }}>
+        <div style={{ animation: "spin 1s linear infinite", fontSize: "2rem" }}>⏳</div>
+      </div>
+    );
+  }
 
   if (!session) {
     return (
