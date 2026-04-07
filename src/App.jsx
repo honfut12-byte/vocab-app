@@ -237,7 +237,7 @@ export default function App() {
   if (!session) {
     return (
       <div style={{ height: "100dvh", display: "flex", alignItems: "center", justifyContent: "center", background: "#fff5f8", fontFamily: "'Fredoka', sans-serif" }}>
-        <div style={{ background: "white", padding: "40px", borderRadius: "30px", boxShadow: "0 10px 25px rgba(255, 117, 140, 0.1)", width: "90%", maxWidth: "400px", textAlign: "center" }}>
+        <div style={{ background: "white", padding: "clamp(20px, 8vw, 40px)", borderRadius: "30px", boxShadow: "0 10px 25px rgba(255, 117, 140, 0.1)", width: "90%", maxWidth: "400px", textAlign: "center", boxSizing: "border-box" }}>
           <h1 style={{ color: "#ff758c", marginBottom: "30px" }}>LizAlis 🎀</h1>
           <input type="email" placeholder="Почта" value={email} onChange={(e) => setEmail(e.target.value)} style={{ width: "100%", height: "50px", borderRadius: "25px", border: "2px solid #fff0f5", padding: "0 20px", marginBottom: "15px", boxSizing: "border-box" }} />
           <input type="password" placeholder="Пароль" value={password} onChange={(e) => setPassword(e.target.value)} style={{ width: "100%", height: "50px", borderRadius: "25px", border: "2px solid #fff0f5", padding: "0 20px", marginBottom: "25px", boxSizing: "border-box" }} />
@@ -282,9 +282,9 @@ export default function App() {
           height: 100%; 
           overflow: hidden; 
           overscroll-behavior: none; 
-          touch-action: none; 
           -webkit-user-select: none;
           user-select: none;
+          -webkit-text-size-adjust: 100%;
         }
 
         @keyframes pulse { 0% { opacity: 0.7; } 50% { opacity: 1; } 100% { opacity: 0.7; } }
@@ -336,7 +336,7 @@ export default function App() {
         
         <div style={{ flex: "0 0 auto", padding: "15px 20px", background: "rgba(255, 255, 255, 0.85)", backdropFilter: "blur(10px)", borderBottom: "1px solid rgba(255, 117, 140, 0.2)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div style={{ width: "40px" }}></div>
-          <h1 style={{ margin: 0, fontSize: "2.2rem", fontWeight: "600", background: "linear-gradient(45deg, #ff758c 0%, #ff7eb3 100%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>LizAlis</h1>
+          <h1 style={{ margin: 0, fontSize: "clamp(1.5rem, 8vw, 2.2rem)", fontWeight: "600", background: "linear-gradient(45deg, #ff758c 0%, #ff7eb3 100%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>LizAlis</h1>
           <button onClick={() => supabase.auth.signOut()} style={{ background: "none", border: "1px solid #ff758c", color: "#ff758c", borderRadius: "15px", padding: "5px 10px", fontSize: "12px", cursor: "pointer" }}>Выйти</button>
         </div>
 
